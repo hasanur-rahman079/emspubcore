@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE schema SYSTEM "../../../lib/pkp/dtd/xmlSchema.dtd">
+<!--
+  * plugins/generic/emspubcore/schema.xml
+  *
+  * EmsPubCore plugin database schema.
+  -->
+<schema version="0.2">
+
+	<!--
+	  * TABLE emspubcore_plans
+	  * Stores defined subscription plan types
+	  -->
+	<table name="emspubcore_plans">
+		<field name="plan_id" type="I8">
+			<KEY />
+			<AUTOINCREMENT />
+		</field>
+		<field name="name" type="C2" size="255">
+			<NOTNULL />
+		</field>
+		<field name="price" type="F">
+			<NOTNULL />
+			<DEFAULT VALUE="0.00" />
+		</field>
+		<field name="discounted_price" type="F" />
+		<field name="submission_limit" type="I4">
+			<NOTNULL />
+			<DEFAULT VALUE="0" />
+		</field>
+		<field name="description" type="X" />
+		<descr>Defined subscription plans.</descr>
+	</table>
+
+	<!--
+	  * TABLE emspubcore_journal_plans
+	  * Stores subscription plans for each journal
+	  -->
+	<table name="emspubcore_journal_plans">
+		<field name="plan_id" type="I8">
+			<KEY />
+			<AUTOINCREMENT />
+		</field>
+		<field name="journal_id" type="I8">
+			<NOTNULL />
+		</field>
+		<field name="plan_type" type="C2" size="20">
+			<NOTNULL />
+			<DEFAULT VALUE="free" />
+		</field>
+		<field name="billing_cycle" type="C2" size="20">
+			<DEFAULT VALUE="monthly" />
+		</field>
+		<field name="submissions_limit" type="I4">
+			<NOTNULL />
+			<DEFAULT VALUE="5" />
+		</field>
+		<field name="stripe_subscription_id" type="C2" size="255" />
+		<field name="stripe_customer_id" type="C2" size="255" />
+		<field name="plan_start_date" type="T" />
+		<field name="plan_end_date" type="T" />
+		<field name="is_active" type="I1">
+			<NOTNULL />
+			<DEFAULT VALUE="1" />
+		</field>
+		<field name="created_at" type="T" />
+		<field name="updated_at" type="T" />
+		<descr>Journal subscription plans with Stripe integration.</descr>
+		<index name="emspubcore_journal_plans_journal_id">
+			<col>journal_id</col>
+			<UNIQUE />
+		</index>
+		<index name="emspubcore_journal_plans_stripe_sub">
+			<col>stripe_subscription_id</col>
+		</index>
+	</table>
+
+	<!--
+	  * TABLE emspubcore_submission_usage
+	  * Tracks monthly submission counts per journal
+	  -->
+	<table name="emspubcore_submission_usage">
+		<field name="usage_id" type="I8">
+			<KEY />
+			<AUTOINCREMENT />
+		</field>
+		<field name="journal_id" type="I8">
+			<NOTNULL />
+		</field>
+		<field name="year_month" type="C2" size="7">
+			<NOTNULL />
+		</field>
+		<field name="submission_count" type="I4">
+			<NOTNULL />
+			<DEFAULT VALUE="0" />
+		</field>
+		<descr>Monthly submission usage tracking per journal.</descr>
+		<index name="emspubcore_submission_usage_pkey">
+			<col>journal_id</col>
+			<col>year_month</col>
+			<UNIQUE />
+		</index>
+	</table>
+
+	<!--
+	  * TABLE emspubcore_payment_history
+	  * Logs all payment transactions
+	  -->
+	<table name="emspubcore_payment_history">
+		<field name="payment_id" type="I8">
+			<KEY />
+			<AUTOINCREMENT />
+		</field>
+		<field name="journal_id" type="I8">
+			<NOTNULL />
+		</field>
+		<field name="stripe_payment_intent_id" type="C2" size="255" />
+		<field name="stripe_invoice_id" type="C2" size="255" />
+		<field name="amount" type="I4">
+			<NOTNULL />
+		</field>
+		<field name="currency" type="C2" size="3">
+			<DEFAULT VALUE="USD" />
+		</field>
+		<field name="plan_type" type="C2" size="20" />
+		<field name="billing_cycle" type="C2" size="20" />
+		<field name="status" type="C2" size="20">
+			<DEFAULT VALUE="pending" />
+		</field>
+		<field name="created_at" type="T" />
+		<descr>Payment transaction history.</descr>
+		<index name="emspubcore_payment_history_journal_id">
+			<col>journal_id</col>
+		</index>
+	</table>
+
+</schema>

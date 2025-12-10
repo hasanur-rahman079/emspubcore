@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE version SYSTEM "../../../lib/pkp/dtd/pluginVersion.dtd">
+
+<!--
+  * plugins/generic/emspubcore/version.xml
+  *
+  * EmsPubCore plugin version descriptor.
+  -->
+<version>
+	<application>emspubcore</application>
+	<type>plugins.generic</type>
+	<release>1.0.0.0</release>
+	<date>2024-12-10</date>
+	<lazy-load>0</lazy-load>
+	<class>EmsPubCorePlugin</class>
+</version>
