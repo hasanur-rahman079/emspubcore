@@ -54,7 +54,7 @@ msgid "plugins.generic.emspubcore.plan.premium"
 msgstr "Premium"
 
 msgid "plugins.generic.emspubcore.submissionsPerMonth"
-msgstr "Submissions/Month"
+msgstr "Submissions/Year"
 
 msgid "plugins.generic.emspubcore.monthlyPrice"
 msgstr "Monthly Price"
@@ -87,7 +87,7 @@ msgid "plugins.generic.emspubcore.selectPlan"
 msgstr "Select Plan"
 
 msgid "plugins.generic.emspubcore.error.limitReached"
-msgstr "You have reached your monthly submission limit ({$limit}) for the {$plan} plan. Please upgrade your plan to submit more articles."
+msgstr "You have reached your yearly submission limit ({$limit}) for the {$plan} plan. Please upgrade your plan to submit more articles."
 
 msgid "plugins.generic.emspubcore.error.paymentFailed"
 msgstr "Payment failed. Please try again or contact support."
@@ -96,7 +96,7 @@ msgid "plugins.generic.emspubcore.error.invalidPlan"
 msgstr "Invalid plan selected."
 
 msgid "plugins.generic.emspubcore.badge.title"
-msgstr "Submissions: {$used} of {$limit} used this month"
+msgstr "Submissions: {$used} of {$limit} used this year"
 
 msgid "plugins.generic.emspubcore.success.planUpdated"
 msgstr "Journal plan has been updated successfully."
@@ -139,3 +139,18 @@ msgstr "Current Plan"
 
 msgid "common.status"
 msgstr "Status"
+
+msgid "plugins.generic.emspubcore.journalPayments"
+msgstr "Journal Payments"
+
+msgid "plugins.generic.emspubcore.paymentGateways"
+msgstr "Payment gateways"
+
+msgid "plugins.generic.emspubcore.subscriptionDate"
+msgstr "Subscription Date"
+
+msgid "plugins.generic.emspubcore.lastPayment"
+msgstr "Last Payment"
+
+msgid "plugins.generic.emspubcore.nextPayment"
+msgstr "Next Payment"

@@ -67,7 +67,6 @@
 				<tr>
 					<th>{translate key="plugins.generic.emspubcore.plan"}</th>
 					<th>{translate key="plugins.generic.emspubcore.submissionsPerMonth"}</th>
-					<th>{translate key="plugins.generic.emspubcore.monthlyPrice"}</th>
 					<th>{translate key="plugins.generic.emspubcore.yearlyPrice"}</th>
 				</tr>
 			</thead>
@@ -76,18 +75,15 @@
 					<td><strong>{translate key="plugins.generic.emspubcore.plan.free"}</strong></td>
 					<td>{$planLimits.free}</td>
 					<td>-</td>
-					<td>-</td>
 				</tr>
 				<tr>
 					<td><strong>{translate key="plugins.generic.emspubcore.plan.basic"}</strong></td>
 					<td>{$planLimits.basic}</td>
-					<td>${$planPrices.basic.monthly / 100}/mo</td>
 					<td>${$planPrices.basic.yearly / 100}/yr</td>
 				</tr>
 				<tr>
 					<td><strong>{translate key="plugins.generic.emspubcore.plan.premium"}</strong></td>
 					<td>{$planLimits.premium}</td>
-					<td>${$planPrices.premium.monthly / 100}/mo</td>
 					<td>${$planPrices.premium.yearly / 100}/yr</td>
 				</tr>
 			</tbody>

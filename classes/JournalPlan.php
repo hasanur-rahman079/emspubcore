@@ -81,7 +81,7 @@ class JournalPlan extends DataObject
      */
     public function getBillingCycle(): string
     {
-        return $this->getData('billing_cycle') ?? self::BILLING_MONTHLY;
+        return $this->getData('billing_cycle') ?? self::BILLING_YEARLY;
     }
 
     /**

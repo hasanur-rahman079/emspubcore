@@ -6,7 +6,7 @@
         
         <!-- 1. Header Section -->
         <div class="emspubcore-plan-header">
-            <h3>Submission Plan for {$emspubcoreJournalName}</h3>
+            <h3>Yearly Submission Plan for {$emspubcoreJournalName}</h3>
             <div class="emspubcore-status-row">
                 <span class="status-item">
                     {translate key="plugins.generic.emspubcore.currentPlan"}: 
@@ -23,10 +23,9 @@
                     {if $emspubcoreCurrentPlan && $emspubcoreCurrentPlan->getIsActive()}
                         <span class="emspubcore-status-active">Active</span>
                     {else}
-                        <span>Inactive</span>
+                        <span class="emspubcore-status-inactive">Inactive</span>
                     {/if}
                 </span>
-                <span class="status-item">
                 <span class="status-item">
                     {translate key="plugins.generic.emspubcore.usage"}:
                     <strong>
@@ -41,75 +40,104 @@
             </div>
         </div>
 
-        <form class="pkp_form" id="planForm" method="POST" action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="assignPlan"}">
-            {csrf}
-            <input type="hidden" name="journalId" value="{$emspubcoreJournalId}" />
-            <!-- Normalize plan key/name to match what Handler expects -->
-            <input type="hidden" name="planType" id="selectedPlanInput" value="{if $emspubcoreCurrentPlan}{$emspubcoreCurrentPlan->getPlanType()|lower|replace:' ':''}{else}free{/if}" />
+        <!-- Store current plan for JS comparison -->
+        {assign var=currentPlanKey value="free"}
+        {assign var=isPlanActive value=0}
+        {if $emspubcoreCurrentPlan}
+            {assign var=currentPlanKey value=$emspubcoreCurrentPlan->getPlanType()|lower|replace:' ':''}
+            {assign var=isPlanActive value=$emspubcoreCurrentPlan->getIsActive()}
+        {/if}
+        
+        <input type="hidden" id="currentActivePlan" value="{$currentPlanKey}" />
+        <input type="hidden" id="selectedPlanInput" value="{$currentPlanKey}" />
+        <input type="hidden" id="emspubcoreJournalId" value="{$emspubcoreJournalId}" />
+        <input type="hidden" id="emspubcoreBaseUrl" value="{$baseUrl}" />
+        <input type="hidden" id="isPlanActive" value="{$isPlanActive}" />
 
-            <!-- 2. Dynamic Plan Cards -->
-            <div class="emspubcore-card-container">
-                {foreach from=$emspubcorePlansObject item=plan}
-                    {assign var=planKey value=$plan->getName()|lower|replace:' ':''}
-                    {assign var=currentPlanKey value="free"}
-                    {if $emspubcoreCurrentPlan}
-                        {assign var=currentPlanKey value=$emspubcoreCurrentPlan->getPlanType()|lower|replace:' ':''}
+        <!-- 2. Dynamic Plan Cards -->
+        <div class="emspubcore-card-container">
+            {foreach from=$emspubcorePlansObject item=plan}
+                {assign var=planKey value=$plan->getName()|lower|replace:' ':''}
+                {assign var=planPrice value=$plan->getDiscountedPrice()|default:$plan->getPrice()}
+
+                <div class="emspubcore-plan-card {if $planKey == $currentPlanKey}selected current{/if}" 
+                     data-plan="{$planKey}" 
+                     data-price="{$planPrice}">
+                    <div class="emspubcore-card-header">
+                        <span class="emspubcore-card-title">{$plan->getName()|escape}</span>
+                        <div class="emspubcore-radio"></div>
+                    </div>
+                    
+                    <div class="emspubcore-price-container">
+                        {if $plan->getDiscountedPrice() && $plan->getDiscountedPrice() > 0}
+                            <span class="emspubcore-price" style="text-decoration: line-through; color: #999; font-size: 18px;">${$plan->getPrice()|string_format:"%.0f"}</span>
+                            <span class="emspubcore-price-discounted" style="font-size: 24px; color: #008a00; font-weight: 700;">${$plan->getDiscountedPrice()|string_format:"%.0f"}</span>
+                            <div style="font-size: 11px; color: #008a00; font-weight: bold; text-transform: uppercase; margin-top: 2px;">{translate key="plugins.generic.emspubcore.discountedPrice"}</div>
+                        {else}
+                            <span class="emspubcore-price">${$plan->getPrice()|string_format:"%.0f"}</span>
+                        {/if}
+                    </div>
+                    
+                    <div class="emspubcore-limit">
+                        {if $plan->getSubmissionLimit() == 0}
+                            Unlimited submissions
+                        {else}
+                            Up to {$plan->getSubmissionLimit()} submissions
+                        {/if}
+                    </div>
+                    
+                    {if $planKey == $currentPlanKey && $isPlanActive}
+                        <div class="emspubcore-current-badge">Current Plan</div>
                     {/if}
-
-                    <div class="emspubcore-plan-card {if $planKey == $currentPlanKey}selected{/if}" data-plan="{$planKey}">
-                        <div class="emspubcore-card-header">
-                            <span class="emspubcore-card-title">{$plan->getName()|escape}</span>
-                            <div class="emspubcore-radio"></div>
-                        </div>
-                        
-                        <div class="emspubcore-price-container">
-                            {if $plan->getDiscountedPrice() && $plan->getDiscountedPrice() > 0}
-                                <span class="emspubcore-price" style="text-decoration: line-through; color: #999; font-size: 18px;">${$plan->getPrice()|string_format:"%.0f"}</span>
-                                <span class="emspubcore-price-discounted" style="font-size: 24px; color: #008a00; font-weight: 700;">${$plan->getDiscountedPrice()|string_format:"%.0f"}</span>
-                                <div style="font-size: 11px; color: #008a00; font-weight: bold; text-transform: uppercase; margin-top: 2px;">{translate key="plugins.generic.emspubcore.discountedPrice"}</div>
-                            {else}
-                                <span class="emspubcore-price">${$plan->getPrice()|string_format:"%.0f"}</span>
-                            {/if}
-                        </div>
-                        
-                        <div class="emspubcore-limit">
-                            {if $plan->getSubmissionLimit() == 0}
-                                Unlimited submissions
-                            {else}
-                                Up to {$plan->getSubmissionLimit()} submissions
-                            {/if}
-                        </div>
-                    </div>
-                {/foreach}
-            </div>
-
-            <!-- 3. Save Action or Contact Support Message -->
-            <div class="emspubcore-save-actions">
-                {if $emspubcoreCanEdit}
-                    <button class="pkp_button pkp_button_primary" type="submit">{translate key="common.save"}</button>
-                {else}
-                    <div class="pkp_notification" style="background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; padding: 15px; border-radius: 4px; text-align: center;">
-                        <strong>Upgrade Required:</strong> Please contact the EMS Support team to upgrade your plan.
-                    </div>
-                {/if}
-            </div>
-        </form>
-
-        <!-- 4. Payment Options -->
-        <div class="emspubcore-payment-options">
-            <h3>Payment Options</h3>
-            <div class="emspubcore-payment-buttons">
-                <button class="pkp_button pkp_button_primary" onclick="alert('Payment Integration Coming Soon'); return false;">
-                    Make Payment
-                </button>
-                <button class="pkp_button" onclick="alert('Link Copied'); return false;">
-                    Copy payment link
-                </button>
-            </div>
+                </div>
+            {/foreach}
         </div>
 
-        <!-- 5. Payment History -->
-        <h3>{translate key="plugins.generic.emspubcore.subscriptionHistory"}</h3>
+        <!-- 3. Action Button - Dynamic based on selection -->
+        <div class="emspubcore-save-actions" style="margin-top: 20px;">
+            {if $emspubcoreCanEdit}
+                <!-- Hidden inputs for JS -->
+                <input type="hidden" id="currentUsage" value="{$emspubcoreCurrentUsage|default:0}" />
+                <input type="hidden" id="currentLimit" value="{$emspubcoreCurrentLimit|default:0}" />
+                
+                <!-- Activate Free Plan button (for new journals) -->
+                <form id="activateFreePlanForm" method="POST" action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="assignPlan"}" style="display: inline;">
+                    {csrf}
+                    <input type="hidden" name="journalId" value="{$emspubcoreJournalId}" />
+                    <input type="hidden" name="planType" value="free" />
+                    <button class="pkp_button pkp_button_primary" id="emspubcoreActivateBtn" type="submit" style="display: none;">
+                        Activate Free Plan
+                    </button>
+                </form>
+                
+                <!-- Upgrade button (for switching to paid plans) -->
+                <button class="pkp_button pkp_button_primary" id="emspubcoreUpgradeBtn" style="display: none;">
+                    Upgrade Plan
+                </button>
+                
+                <!-- Renew button (for renewing current paid plan) -->
+                <button class="pkp_button" id="emspubcoreRenewBtn" style="display: none; background: #28a745; color: white; border-color: #28a745;">
+                    Renew Plan
+                </button>
+                
+                <!-- Limit reached warning -->
+                <div id="emspubcoreLimitWarning" class="pkp_notification" style="display: none; background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 15px; border-radius: 4px; margin-bottom: 15px;">
+                    <strong>⚠️ Submission Limit Reached:</strong> You have used all your submissions for this billing period. 
+                    Renew your plan to reset the counter, or upgrade to a higher plan for more submissions.
+                </div>
+                
+                <span id="emspubcoreCurrentPlanNote" style="color: #666; font-style: italic;">
+                    You are on the {$currentPlanKey|ucfirst} plan. Select a different plan to upgrade.
+                </span>
+            {else}
+                <div class="pkp_notification" style="background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; padding: 15px; border-radius: 4px; text-align: center;">
+                    <strong>Upgrade Required:</strong> Please contact your Journal Manager or Site Administrator to upgrade the plan.
+                </div>
+            {/if}
+        </div>
+
+        <!-- 4. Payment History -->
+        <h3 style="margin-top: 30px;">{translate key="plugins.generic.emspubcore.subscriptionHistory"}</h3>
         <div class="pkp_list_panel">
             <table class="pkpTable">
                 <thead>
@@ -119,43 +147,38 @@
                         <th style="width: 15%;">AMOUNT</th>
                         <th style="width: 15%;">STATUS</th>
                         <th style="width: 15%;">PLAN</th>
-                        <th style="width: 15%;">DOWNLOAD INVOICE</th>
+                        <th style="width: 15%;">DOWNLOAD</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {foreach from=$emspubcorePaymentHistory item=payment}
+                    {foreach from=$emspubcorePaymentHistory item=payment name=paymentLoop}
                         <tr>
                             <td>
                                 {if $payment->stripe_invoice_id}
                                     {$payment->stripe_invoice_id|truncate:15:"..."}
                                 {else}
-                                    INV-{math equation="rand(1000,9999)"}-{math equation="rand(10,99)"}
+                                    INV-{$payment->payment_id|string_format:"%06d"}
                                 {/if}
                             </td>
-                            <td>{$payment->payment_date|date_format:"%Y-%m-%d"}</td>
-                            <td>${$payment->amount / 100|string_format:"%.2f"}</td>
+                            <td>
+                                {* Format: extract first 10 chars for YYYY-MM-DD *}
+                                {$payment->payment_date|substr:0:10}
+                            </td>
+                            <td>${$payment->amount / 100|string_format:"%.0f"}</td>
                             <td>
                                 <span class="emspubcore-history-status {if $payment->status == 'succeeded'}emspubcore-status-completed{else}emspubcore-status-failed{/if}">
-                                    {if $payment->status == 'succeeded'}Completed{else}{$payment->status|ucfirst}{/if}
+                                    {if $payment->status == 'succeeded'}COMPLETED{else}{$payment->status|upper}{/if}
                                 </span>
                             </td>
                             <td>{$payment->plan_type|ucfirst}</td>
                             <td>
-                                <a href="#" class="emspubcore-invoice-link">↓</a>
+                                <a href="{$baseUrl}/plugins/generic/emspubcore/invoice.php?payment_id={$payment->payment_id}&journal_id={$emspubcoreJournalId}" 
+                                   class="emspubcore-invoice-link" 
+                                   title="Download Invoice"
+                                   target="_blank">↓</a>
                             </td>
                         </tr>
                     {foreachelse}
-                        <!-- Mock Data for Display if Empty (requested by design requirement to show history) -->
-                         <!-- 
-                        <tr>
-                            <td>INV-2023-001</td>
-                            <td>2023-10-26</td>
-                            <td>$29.00</td>
-                            <td><span class="emspubcore-history-status emspubcore-status-completed">Completed</span></td>
-                            <td>Basic</td>
-                            <td><a href="#" class="emspubcore-invoice-link">↓</a></td>
-                        </tr>
-                        -->
                         <tr><td colspan="6" style="text-align: center; color: #777; padding: 20px;">No payment history found.</td></tr>
                     {/foreach}
                 </tbody>
@@ -167,9 +190,63 @@
     <script type="text/javascript">
         $(function() {
             var canEdit = {if $emspubcoreCanEdit}true{else}false{/if};
+            var currentPlan = $('#currentActivePlan').val();
+            var baseUrl = $('#emspubcoreBaseUrl').val();
+            var journalId = $('#emspubcoreJournalId').val();
+            var isPlanActive = $('#isPlanActive').val() === '1';
+            var currentUsage = parseInt($('#currentUsage').val()) || 0;
+            var currentLimit = parseInt($('#currentLimit').val()) || 0;
+            var isLimitReached = (currentLimit > 0 && currentUsage >= currentLimit);
             
+            function updateButtonState() {
+                var selectedPlan = $('#selectedPlanInput').val();
+                var $upgradeBtn = $('#emspubcoreUpgradeBtn');
+                var $activateBtn = $('#emspubcoreActivateBtn');
+                var $renewBtn = $('#emspubcoreRenewBtn');
+                var $noteSpan = $('#emspubcoreCurrentPlanNote');
+                var $limitWarning = $('#emspubcoreLimitWarning');
+                
+                // Hide all buttons and warning first
+                $upgradeBtn.hide();
+                $activateBtn.hide();
+                $renewBtn.hide();
+                $noteSpan.hide();
+                $limitWarning.hide();
+                
+                // Show limit warning if applicable
+                if (isLimitReached && isPlanActive && currentPlan !== 'free') {
+                    $limitWarning.show();
+                }
+                
+                if (!isPlanActive && selectedPlan === 'free') {
+                    // New journal with no active plan - show Activate Free Plan
+                    $activateBtn.show();
+                } else if (!isPlanActive && selectedPlan !== 'free') {
+                    // New journal selecting a paid plan - show upgrade
+                    $upgradeBtn.show().text('Upgrade to ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1));
+                } else if (selectedPlan === currentPlan && currentPlan !== 'free') {
+                    // Same as current active paid plan - show renew option
+                    if (isLimitReached) {
+                        $renewBtn.show().text('Renew ' + currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) + ' Plan');
+                    } else {
+                        $renewBtn.show().text('Renew ' + currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) + ' (Reset Counter)');
+                        $noteSpan.show().text('You can renew early to reset your submission counter.');
+                    }
+                } else if (selectedPlan === currentPlan && currentPlan === 'free') {
+                    // On free plan - suggest upgrade
+                    $noteSpan.show().text('You are on the Free plan. Select a paid plan to upgrade and get more submissions.');
+                } else if (selectedPlan === 'free') {
+                    // Downgrade to free - not supported
+                    $noteSpan.show().text('Downgrading to Free plan is not available. Please contact support.');
+                } else {
+                    // Different paid plan selected - show upgrade
+                    $upgradeBtn.show().text('Upgrade to ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1));
+                }
+            }
+            
+            // Plan card click handler
             $('.emspubcore-plan-card').click(function() {
-                if (!canEdit) return; // Disable selection if read-only
+                if (!canEdit) return;
 
                 var plan = $(this).data('plan');
                 
@@ -179,12 +256,63 @@
                 
                 // Update hidden input
                 $('#selectedPlanInput').val(plan);
+                
+                // Update button state
+                updateButtonState();
+            });
+            
+            // Upgrade Button Click - Go to Stripe
+            $('#emspubcoreUpgradeBtn').click(function(e) {
+                e.preventDefault();
+                var selectedPlan = $('#selectedPlanInput').val();
+                
+                if (selectedPlan === 'free' || selectedPlan === currentPlan) {
+                    return;
+                }
+                
+                if (confirm('You are about to upgrade to the ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) + ' plan.\n\nYou will be redirected to complete the payment. Continue?')) {
+                    var billing = 'yearly';
+                    var url = baseUrl + '/plugins/generic/emspubcore/checkout.php?plan=' + selectedPlan + '&billing=' + billing + '&journalId=' + journalId;
+                    window.location.href = url;
+                }
+            });
+            
+            // Renew Button Click - Go to Stripe for renewal
+            $('#emspubcoreRenewBtn').click(function(e) {
+                e.preventDefault();
+                
+                if (confirm('You are about to renew your ' + currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) + ' plan.\n\nThis will:\n• Charge your payment method\n• Reset your submission counter to 0\n• Extend your plan for another year\n\nContinue?')) {
+                    var billing = 'yearly';
+                    var url = baseUrl + '/plugins/generic/emspubcore/checkout.php?plan=' + currentPlan + '&billing=' + billing + '&journalId=' + journalId + '&renew=1';
+                    window.location.href = url;
+                }
             });
             
             // Visual cue for read-only
             if (!canEdit) {
                 $('.emspubcore-plan-card').css('cursor', 'default');
             }
+            
+            // Initialize button state
+            updateButtonState();
         });
     </script>
+
+    <style>
+        .emspubcore-status-inactive { color: #dc3545; font-weight: bold; }
+        .emspubcore-current-badge { 
+            position: absolute; 
+            top: -10px; 
+            right: -10px; 
+            background: #28a745; 
+            color: white; 
+            font-size: 10px; 
+            padding: 3px 8px; 
+            border-radius: 10px; 
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .emspubcore-plan-card { position: relative; }
+        .emspubcore-plan-card.current { border-color: #28a745; }
+    </style>
 </tab>

@@ -35,17 +35,17 @@
                 </div>
 
                 <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                    <!-- Price -->
-                    <div class="form-group" style="flex: 1;">
-                        <label>{translate key="plugins.generic.emspubcore.price"} (USD)</label>
-                        <input type="number" step="0.01" name="price" class="pkp_form_input_text" required style="width: 100%;" placeholder="e.g. 99.00" />
-                    </div>
+                <!-- Yearly Price -->
+                <div class="form-group" style="flex: 1;">
+                    <label>{translate key="plugins.generic.emspubcore.price"} (Yearly USD)</label>
+                    <input type="number" step="0.01" name="price" class="pkp_form_input_text" required style="width: 100%;" placeholder="e.g. 290.00" />
+                </div>
 
-                    <!-- Discounted Price -->
-                    <div class="form-group" style="flex: 1;">
-                        <label>{translate key="plugins.generic.emspubcore.discountedPrice"}</label>
-                        <input type="number" step="0.01" name="discounted_price" class="pkp_form_input_text" style="width: 100%;" placeholder="e.g. 79.00" />
-                    </div>
+                <!-- Discounted Price -->
+                <div class="form-group" style="flex: 1;">
+                    <label>{translate key="plugins.generic.emspubcore.discountedPrice"} (Yearly)</label>
+                    <input type="number" step="0.01" name="discounted_price" class="pkp_form_input_text" style="width: 100%;" placeholder="e.g. 250.00" />
+                </div>
 
                     <!-- Submission Count -->
                     <div class="form-group" style="flex: 1;">
@@ -65,7 +65,7 @@
             <thead>
                 <tr>
                     <th>{translate key="common.name"}</th>
-                    <th>{translate key="plugins.generic.emspubcore.price"} (USD)</th>
+                    <th>{translate key="plugins.generic.emspubcore.price"} (Yearly USD)</th>
                     <th>{translate key="plugins.generic.emspubcore.discountedPrice"}</th>
                     <th>{translate key="plugins.generic.emspubcore.submissions"}</th>
                     <th>{translate key="common.action"}</th>

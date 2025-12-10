@@ -33,6 +33,7 @@ require_once(__DIR__ . '/classes/JournalPlan.php');
 require_once(__DIR__ . '/classes/SubmissionUsageDAO.php');
 require_once(__DIR__ . '/classes/PlanDAO.php');
 require_once(__DIR__ . '/classes/Plan.php');
+require_once(__DIR__ . '/classes/PaymentHistoryDAO.php');
 require_once(__DIR__ . '/EmsPubCoreSettingsForm.php');
 require_once(__DIR__ . '/EmsPubCorePageHandler.php');
 
@@ -43,6 +44,9 @@ class EmsPubCorePlugin extends GenericPlugin
 
     /** @var SubmissionUsageDAO */
     private $submissionUsageDAO;
+
+    /** @var PaymentHistoryDAO */
+    private $paymentHistoryDAO;
 
     /**
      * @copydoc Plugin::register()
@@ -88,6 +92,9 @@ class EmsPubCorePlugin extends GenericPlugin
             // Hook into Workflow Settings > Submission to add Plan Tab
             Hook::add('Template::Settings::workflow::submission', [$this, 'addWorkflowSubmissionTab']);
             
+            // Hide upgrade banner for non-site-admins at journal level
+            Hook::add('TemplateManager::display', [$this, 'hideUpgradeBannerForNonAdmins']);
+            
             // Register page handler for plugin routes
             Hook::add('LoadHandler', [$this, 'setupPageHandler']);
         }
@@ -115,6 +122,17 @@ class EmsPubCorePlugin extends GenericPlugin
             $this->submissionUsageDAO = new classes\SubmissionUsageDAO();
         }
         return $this->submissionUsageDAO;
+    }
+
+    /**
+     * Get or create PaymentHistoryDAO instance
+     */
+    private function getPaymentHistoryDAO(): classes\PaymentHistoryDAO
+    {
+        if (!$this->paymentHistoryDAO) {
+            $this->paymentHistoryDAO = new classes\PaymentHistoryDAO();
+        }
+        return $this->paymentHistoryDAO;
     }
 
     /**
@@ -147,8 +165,8 @@ class EmsPubCorePlugin extends GenericPlugin
             // Insert default plans
             \Illuminate\Support\Facades\DB::table('emspubcore_plans')->insert([
                 ['name' => 'Free', 'price' => 0.00, 'submission_limit' => 5],
-                ['name' => 'Basic', 'price' => 29.00, 'submission_limit' => 100],
-                ['name' => 'Premium', 'price' => 49.00, 'submission_limit' => 200]
+                ['name' => 'Basic', 'price' => 290.00, 'submission_limit' => 100],
+                ['name' => 'Premium', 'price' => 490.00, 'submission_limit' => 200]
             ]);
         }
 
@@ -158,7 +176,7 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->bigIncrements('plan_id');
                 $table->bigInteger('journal_id');
                 $table->string('plan_type')->default('free');
-                $table->string('billing_cycle')->default('monthly');
+                $table->string('billing_cycle')->default('yearly');
                 $table->integer('submissions_limit')->default(5);
                 $table->string('stripe_subscription_id')->nullable();
                 $table->string('stripe_customer_id')->nullable();
@@ -198,6 +216,26 @@ class EmsPubCorePlugin extends GenericPlugin
     }
 
     /**
+     * Hide the OJS upgrade notification banner for non-site-admins
+     * Only Site Administrators should see the upgrade notification at journal level
+     */
+    public function hideUpgradeBannerForNonAdmins($hookName, $args)
+    {
+        $templateMgr = $args[0];
+        $template = $args[1] ?? '';
+        
+        // Only apply to management templates (journal settings pages)
+        if (strpos($template, 'management/') === 0) {
+            // If not a Site Admin, hide the upgrade banner
+            if (!\PKP\security\Validation::isSiteAdmin()) {
+                $templateMgr->assign('newVersionAvailable', false);
+            }
+        }
+        
+        return \PKP\plugins\Hook::CONTINUE;
+    }
+
+    /**
      * Setup the page handler for plugin routes
      *
      * @param string $hookName
@@ -208,11 +246,20 @@ class EmsPubCorePlugin extends GenericPlugin
         $page = $args[0];
         
         if ($page === 'emspubcore') {
-            $args[3] = new EmsPubCorePageHandler();
+            $args[3] = new EmsPubCorePageHandler($this);
             return true;
         }
         
         return false;
+    }
+
+    /**
+     * @copydoc Plugin::isSitePlugin()
+     * This plugin should only be manageable by Site Admins
+     */
+    public function isSitePlugin()
+    {
+        return true;
     }
 
     /**
@@ -233,24 +280,12 @@ class EmsPubCorePlugin extends GenericPlugin
 
     /**
      * @copydoc Plugin::getActions()
+     * No plugin-level settings needed - all configuration is done via Site Admin
      */
     public function getActions($request, $verb)
     {
-        $router = $request->getRouter();
-        return array_merge(
-            $this->getEnabled() ? [
-                new LinkAction(
-                    'settings',
-                    new AjaxModal(
-                        $router->url($request, null, null, 'manage', null, ['verb' => 'settings', 'plugin' => $this->getName(), 'category' => 'generic']),
-                        $this->getDisplayName()
-                    ),
-                    __('manager.plugins.settings'),
-                    null
-                ),
-            ] : [],
-            parent::getActions($request, $verb)
-        );
+        // No settings link - plugin is managed at site level only
+        return parent::getActions($request, $verb);
     }
 
     /**
@@ -322,15 +357,16 @@ class EmsPubCorePlugin extends GenericPlugin
             if ($key === 'free') continue;
 
             $prices[$key] = [
-                'monthly' => $plan->getPrice() * 100, // Convert to cents
-                'yearly' => ($plan->getDiscountedPrice() ?: $plan->getPrice() * 10) * 100 // Approximation or actual
+                'monthly' => null,
+                'yearly' => ($plan->getDiscountedPrice() ?: $plan->getPrice()) * 100
             ];
         }
         return $prices;
     }
 
     /**
-     * Add Plan UI Tab to Site Settings (Admin)
+     * Add UI Tabs to Site Settings (Admin)
+     * Hook: Template::Settings::admin
      */
     public function addSitePlansTab($hookName, $args)
     {
@@ -338,14 +374,75 @@ class EmsPubCorePlugin extends GenericPlugin
         $templateMgr = $args[1];
         $output = &$args[2];
 
-        $planDAO = $this->getPlanDAO();
-        $plans = $planDAO->getAll();
+        // 1. Submission Plans Tab
+        try {
+            $planDAO = $this->getPlanDAO();
+            $plans = $planDAO->getAll();
+            $templateMgr->assign('emspubcorePlans', $plans);
+            $output .= $templateMgr->fetch($this->getTemplateResource('adminSitePlansTab.tpl'));
+        } catch (\Exception $e) {
+            error_log('EmsPubCorePlugin: SitePlansTab Error ' . $e->getMessage());
+        }
 
-        $templateMgr->assign([
-            'emspubcorePlans' => $plans,
-        ]);
+        // 2. Journal Payments Tab
+        try {
+            $contextDao = \PKP\db\DAORegistry::getDAO('JournalDAO');
+            $contexts = $contextDao->getAll();
+            $journalPayments = [];
+            $journalPlanCtxDAO = $this->getJournalPlanDAO();
+            $paymentWrapperDAO = $this->getPaymentHistoryDAO();
 
-        $output .= $templateMgr->fetch($this->getTemplateResource('adminSitePlansTab.tpl'));
+            while ($journal = $contexts->next()) {
+                $jId = (int) $journal->getId();
+                $plan = $journalPlanCtxDAO->getByJournalId($jId);
+                
+                // Plan Info
+                $planName = $plan ? ucfirst($plan->getPlanType()) : 'Free';
+                
+                $subDateRaw = $plan ? $plan->getPlanStartDate() : null;
+                $subDate = $subDateRaw ? date('Y-m-d', strtotime($subDateRaw)) : '-';
+                
+                $nextPaymentRaw = $plan ? $plan->getPlanEndDate() : null;
+                $nextPayment = $nextPaymentRaw ? date('Y-m-d', strtotime($nextPaymentRaw)) : '-';
+
+                // Last Payment Info
+                $lastPaymentDate = '-';
+                $history = $paymentWrapperDAO->getByJournalId($jId);
+                if (!empty($history) && is_array($history)) {
+                     $lastPayment = reset($history);
+                     if (!empty($lastPayment->payment_date)) {
+                        $lastPaymentDate = date('Y-m-d', strtotime($lastPayment->payment_date));
+                     }
+                }
+
+                $journalPayments[] = [
+                    'name' => $journal->getLocalizedName(),
+                    'subscriptionDate' => $subDate,
+                    'planName' => $planName,
+                    'lastPayment' => $lastPaymentDate,
+                    'nextPayment' => $nextPayment
+                ];
+            }
+            $templateMgr->assign('emspubcoreJournalPayments', $journalPayments);
+            
+            $output .= $templateMgr->fetch($this->getTemplateResource('adminJournalPaymentsTab.tpl'));
+        } catch (\Exception $e) {
+            error_log('EmsPubCorePlugin: JournalPaymentsTab Error ' . $e->getMessage());
+        }
+
+        // 3. Payment Gateways Tab
+        try {
+            $templateMgr->assign([
+                'stripePublishableKey' => $this->getSetting(0, 'stripePublishableKey'),
+                'stripeSecretKey' => $this->getSetting(0, 'stripeSecretKey'),
+                'stripeWebhookSecret' => $this->getSetting(0, 'stripeWebhookSecret'),
+                'stripeTestMode' => $this->getSetting(0, 'stripeTestMode'),
+            ]);
+            
+            $output .= $templateMgr->fetch($this->getTemplateResource('adminPaymentGatewaysTab.tpl'));
+        } catch (\Exception $e) {
+             error_log('EmsPubCorePlugin: PaymentGatewaysTab Error ' . $e->getMessage());
+        }
         
         return Hook::CONTINUE;
     }
@@ -373,7 +470,7 @@ class EmsPubCorePlugin extends GenericPlugin
         $limits = self::getPlanLimits();
         $limit = $limits[$planType] ?? $limits['free'];
 
-        $currentUsage = $this->getSubmissionUsageDAO()->getCurrentMonthCount($context->getId());
+        $currentUsage = $this->getSubmissionUsageDAO()->getYearlyCount($context->getId());
 
         if ($currentUsage >= $limit) {
             $errors['submissionLimit'] = [__(
@@ -445,11 +542,15 @@ class EmsPubCorePlugin extends GenericPlugin
             $plan = $this->getJournalPlanDAO()->getByJournalId($context->getId());
             $planType = $plan ? $plan->getPlanType() : 'free';
             $limits = self::getPlanLimits();
-            $title = __('plugins.generic.emspubcore.badge.title', ['used' => $currentUsage, 'limit' => $limit]);
-        // Calculate effective limit (sync with settings tab)
-        $limit = $limits[$planType] ?? $limits['free'];
+            
+            // Use journal's actual limit (includes carryover), fall back to base plan limit
+            if ($plan && $plan->getSubmissionsLimit() > 0) {
+                $limit = $plan->getSubmissionsLimit();
+            } else {
+                $limit = $limits[strtolower(str_replace(' ', '', $planType))] ?? $limits['free'];
+            }
         
-        $currentUsage = $this->getSubmissionUsageDAO()->getCurrentMonthCount($context->getId());
+        $currentUsage = $this->getSubmissionUsageDAO()->getYearlyCount($context->getId());
         // Show "Used / Limit" instead of "Remaining / Limit" standard convention
         $displayCount = $currentUsage . '/' . $limit;
         
@@ -591,9 +692,13 @@ class EmsPubCorePlugin extends GenericPlugin
             }
         }
         
-        // Calculate effective limit for display (sync with badge logic)
-        $planType = $currentPlan ? $currentPlan->getPlanType() : 'free';
-        $currentLimit = $limits[strtolower(str_replace(' ', '', $planType))] ?? $defaultLimit;
+        // Calculate effective limit for display - use journal's actual limit (includes carryover)
+        if ($currentPlan && $currentPlan->getSubmissionsLimit() > 0) {
+            $currentLimit = $currentPlan->getSubmissionsLimit();
+        } else {
+            $planType = $currentPlan ? $currentPlan->getPlanType() : 'free';
+            $currentLimit = $limits[strtolower(str_replace(' ', '', $planType))] ?? $defaultLimit;
+        }
 
         $templateMgr->assign([
             'emspubcoreCurrentPlan' => $currentPlan,
@@ -605,8 +710,9 @@ class EmsPubCorePlugin extends GenericPlugin
             'emspubcoreDefaultLimit' => $defaultLimit,
              // Admin Wizard is always editable by Site Admins
             'emspubcoreCanEdit' => true,
-            'emspubcoreCurrentUsage' => $this->getSubmissionUsageDAO()->getCurrentMonthCount($journalId),
-            'emspubcoreCurrentLimit' => $currentLimit
+            'emspubcoreCurrentUsage' => $this->getSubmissionUsageDAO()->getYearlyCount($journalId),
+            'emspubcoreCurrentLimit' => $currentLimit,
+            'emspubcoreJournalPath' => $context->getPath()
         ]);
 
         // Add CSS for the plan cards
@@ -662,9 +768,14 @@ class EmsPubCorePlugin extends GenericPlugin
             }
         }
         
-        // Calculate effective limit for display
-        $planType = $currentPlan ? $currentPlan->getPlanType() : 'free';
-        $currentLimit = $limits[strtolower(str_replace(' ', '', $planType))] ?? $defaultLimit;
+        // Calculate effective limit for display - use journal's actual limit (includes carryover)
+        // Fall back to base plan limit if journal limit is not set
+        if ($currentPlan && $currentPlan->getSubmissionsLimit() > 0) {
+            $currentLimit = $currentPlan->getSubmissionsLimit();
+        } else {
+            $planType = $currentPlan ? $currentPlan->getPlanType() : 'free';
+            $currentLimit = $limits[strtolower(str_replace(' ', '', $planType))] ?? $defaultLimit;
+        }
 
         $templateMgr->assign([
             'emspubcoreCurrentPlan' => $currentPlan,
@@ -674,10 +785,13 @@ class EmsPubCorePlugin extends GenericPlugin
             'emspubcorePlanOptions' => $planOptions,
             'emspubcorePlansObject' => $plans,
             'emspubcoreDefaultLimit' => $defaultLimit,
-            // Only Site Admins can edit plans here
-            'emspubcoreCanEdit' => \PKP\security\Validation::isSiteAdmin(),
-            'emspubcoreCurrentUsage' => $this->getSubmissionUsageDAO()->getCurrentMonthCount($journalId),
-            'emspubcoreCurrentLimit' => $currentLimit
+            // Allow Site Admin, Journal Manager, or Editor to upgrade plans
+            'emspubcoreCanEdit' => \PKP\security\Validation::isSiteAdmin() || 
+                                   \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $journalId) ||
+                                   \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUB_EDITOR, $journalId),
+            'emspubcoreCurrentUsage' => $this->getSubmissionUsageDAO()->getYearlyCount($journalId),
+            'emspubcoreCurrentLimit' => $currentLimit,
+            'emspubcoreJournalPath' => $context->getPath()
         ]);
 
         // Add CSS for the plan cards
@@ -692,8 +806,5 @@ class EmsPubCorePlugin extends GenericPlugin
         return Hook::CONTINUE;
     }
 
-    public function getPaymentHistoryDAO()
-    {
-        return $this->paymentHistoryDAO;
-    }
+
 }
