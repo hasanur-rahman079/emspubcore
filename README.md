@@ -85,3 +85,35 @@ GNU GPL v3
 ## Support
 
 For issues and feature requests, please contact support@emspub.com
+
+## Development Workflow
+
+This plugin is maintained in a separate git repository.
+
+### Repository Location
+`https://github.com/hasanur-rahman079/emspubcore`
+
+### How to Push Changes
+Since this plugin is nested within the main OJS codebase, you need to execute git commands specifically from the plugin directory.
+
+1. **Navigate to the plugin directory:**
+   ```bash
+   cd plugins/generic/emspubcore
+   ```
+
+2. **Stage your changes:**
+   ```bash
+   git add .
+   ```
+
+3. **Commit your changes:**
+   ```bash
+   git commit -m "Description of your changes"
+   ```
+
+4. **Push to the remote repository:**
+   ```bash
+   git push origin main
+   ```
+
+**Important:** Always ensure you are in `plugins/generic/emspubcore` before running these commands to ensure you are pushing to the plugin repository and not the main OJS codebase.
