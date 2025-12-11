@@ -81,11 +81,176 @@ class EmsPubCorePageHandler extends Handler
                 return $this->savePlan($args, $request);
             case 'deletePlan':
                 return $this->deletePlan($args, $request);
-            case 'saveGatewaySettings':
-                return $this->saveGatewaySettings($args, $request);
+            case 'pendingPayments':
+                return $this->pendingPayments($args, $request);
+            case 'paySubmission':
+                return $this->paySubmission($args, $request);
+            case 'downloadInvoice':
+                return $this->downloadInvoice($args, $request);
             default:
                 $this->getDispatcher()->handle404();
         }
+    }
+
+    /**
+     * Show Pending Payments
+     */
+    public function pendingPayments($args, $request)
+    {
+        $context = $request->getContext();
+        $user = $request->getUser();
+        
+        if (!$context || !$user) {
+             $request->redirect(null, 'login');
+             return;
+        }
+
+        // Get Payment Manager
+        $paymentManager = \APP\core\Application::get()->getPaymentManager($context);
+        $completedPaymentDAO = \PKP\db\DAORegistry::getDAO('OJSCompletedPaymentDAO');
+        
+        $pendingPayments = [];
+        
+        // 1. Check if Publication Fee is enabled
+        // Note: We check generic 'publication fee'. OJS might have FastTrack, Submission, etc.
+        // For simplicity, we focus on Publication Fee as it's the most common "Processing" fee.
+        $publicationFeeEnabled = $paymentManager->isConfigured(); 
+        // Logic: specific check logic depends on OJS version, usually via cost check
+        
+        // Get user's submissions
+        $submissions = \APP\facades\Repo::submission()->getCollector()
+            ->filterByContextIds([$context->getId()])
+            ->assignedTo([$user->getId()])
+            ->getMany();
+
+        // Initialize payment manager and DAOs
+        $paymentManager = \APP\core\Application::get()->getPaymentManager($context);
+        $completedPaymentDao = \PKP\db\DAORegistry::getDAO('OJSCompletedPaymentDAO'); /** @var OJSCompletedPaymentDAO $completedPaymentDao */
+        $queuedPaymentDao = \PKP\db\DAORegistry::getDAO('QueuedPaymentDAO'); /** @var QueuedPaymentDAO $queuedPaymentDao */
+        
+        $pendingPayments = [];
+        
+        // Get all "Payment Required" notifications for this user in this context
+        // Using Eloquent model directly as NotificationDAO is deprecated/removed
+        $paymentNotifications = \PKP\notification\Notification::withUserId($user->getId())
+            ->withContextId($context->getId())
+            ->withType(\PKP\notification\Notification::NOTIFICATION_TYPE_PAYMENT_REQUIRED)
+            ->get();
+            
+        // $paymentNotifications is already a Collection, so toArray returns array of models or raw attributes?
+        // Eloquent get() return Collection. Iterating collection yields Model objects.
+        // We can iterate directly or convert to array.
+        // Let's iterate the collection directly in the loop below.
+
+
+        // 1. Check for Completed Payment (Paid or Waived)
+        foreach ($submissions as $submission) {
+            $paymentStatus = null; 
+            $completedPayment = null;
+            $payUrl = '';
+            $invoiceUrl = '';
+
+            // Check if ANYONE paid for this submission (admin, author, etc)
+            $completedPayment = $completedPaymentDao->getByAssoc(null, $paymentManager::PAYMENT_TYPE_PUBLICATION, $submission->getId());
+            
+            if ($completedPayment) {
+                if ($completedPayment->getAmount() > 0) {
+                    $paymentStatus = 'Paid';
+                    $invoiceUrl = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'downloadInvoice', null, ['submissionId' => $submission->getId()]);
+                } else {
+                    $paymentStatus = 'Waived';
+                }
+
+                // Cleanup: If paid/waived, remove any pending payment notifications for this submission
+                foreach ($paymentNotifications as $notification) {
+                     if ($notification->assocType == \APP\core\Application::ASSOC_TYPE_QUEUED_PAYMENT) {
+                          $queuedPayment = $queuedPaymentDao->getById($notification->assocId);
+                          if ($queuedPayment && 
+                              $queuedPayment->getType() == $paymentManager::PAYMENT_TYPE_PUBLICATION && 
+                              $queuedPayment->getAssocId() == $submission->getId()) {
+                                  // This notification is stale (already paid/waived), delete it
+                                  $notification->delete();
+                          }
+                     }
+                }
+            } else {
+                // 2. Check for Pending Payment Request (via Notification)
+                foreach ($paymentNotifications as $notification) {
+                     if ($notification->assocType == \APP\core\Application::ASSOC_TYPE_QUEUED_PAYMENT) {
+                          $queuedPayment = $queuedPaymentDao->getById($notification->assocId);
+                          // Check if valid qp, type is publication, and matches submission
+                          if ($queuedPayment && 
+                              $queuedPayment->getType() == $paymentManager::PAYMENT_TYPE_PUBLICATION && 
+                              $queuedPayment->getAssocId() == $submission->getId()) {
+                                  
+                               $paymentStatus = 'Pending';
+                               $payUrl = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'payment', 'pay', [$queuedPayment->getId()]);
+                               break; 
+                          }
+                     }
+                }
+            }
+            
+            if ($paymentStatus) {
+                $pendingPayments[] = [
+                    'id' => $submission->getId(),
+                    'title' => $submission->getCurrentPublication()->getLocalizedTitle(),
+                    'amount' => $completedPayment ? $completedPayment->getAmount() : $context->getData('publicationFee'), 
+                    'currency' => $context->getData('currency'),
+                    'status' => $paymentStatus,
+                    'payUrl' => $payUrl,
+                    'invoiceUrl' => $invoiceUrl,
+                    'date' => $completedPayment ? $completedPayment->getTimestamp() : null
+                ];
+            }
+        }
+        
+        $templateMgr = \APP\template\TemplateManager::getManager($request);
+        $this->setupTemplate($request);
+        $templateMgr->setupBackendPage();
+        
+        $templateMgr->assign([
+            'pendingPayments' => $pendingPayments,
+            'pageTitle' => 'Article Processing Payments',
+        ]);
+        
+        return $templateMgr->display($this->getPlugin()->getTemplateResource('pendingPayments.tpl'));
+    }
+
+    /**
+     * Handle Manual Submission Payment Redirect
+     * This acts as a bridge to trigger the OJS payment flow or custom flow
+     */
+    public function paySubmission($args, $request)
+    {
+        $context = $request->getContext();
+        $user = $request->getUser();
+        $submissionId = (int) $request->getUserVar('submissionId');
+        
+        if (!$context || !$user || !$submissionId) {
+            $request->redirect(null, 'index');
+            return;
+        }
+
+        // We delegate to the standard OJS payment system which will pick up our Stripe plugin
+        // Standard OJS Payment Link: /payment/pay/types-publication-assoc-{submissionId}
+        // Actually, we should construct the payment plugin URL directly or use the PaymentManager queue.
+        
+        $paymentManager = \APP\core\Application::get()->getPaymentManager($context);
+        $queuedPayment = $paymentManager->createQueuedPayment(
+            $request,
+            $paymentManager::PAYMENT_TYPE_PUBLICATION,
+            $user->getId(),
+            $submissionId,
+            $paymentManager->getCost($paymentManager::PAYMENT_TYPE_PUBLICATION),
+            $paymentManager->getCurrency()
+        );
+        
+        $paymentManager->queuePayment($queuedPayment);
+        
+        // The queuePayment usually redirects to the payment plugin. 
+        // If not, we manually ensure redirect.
+        return; 
     }
 
     /**
@@ -500,5 +665,46 @@ class EmsPubCorePageHandler extends Handler
             echo '<p>' . htmlspecialchars($e->getMessage()) . '</p>';
             echo '<pre>' . $e->getTraceAsString() . '</pre>';
         }
+    }
+
+    /**
+     * Download Invoice
+     */
+    public function downloadInvoice($args, $request)
+    {
+        if (!$request->getUser()) {
+            $request->redirect(null, 'login');
+            return;
+        }
+        
+        $submissionId = $request->getUserVar('submissionId');
+        if (!$submissionId) $request->redirect(null, 'index');
+        
+        $context = $request->getContext();
+        $submission = \APP\facades\Repo::submission()->get($submissionId);
+        if (!$submission || $submission->getData('contextId') != $context->getId()) {
+            $this->getDispatcher()->handle404();
+        }
+        
+        $completedPaymentDAO = \PKP\db\DAORegistry::getDAO('OJSCompletedPaymentDAO');
+        $paymentManager = \APP\core\Application::get()->getPaymentManager($context);
+        $payment = $completedPaymentDAO->getByAssoc(null, $paymentManager::PAYMENT_TYPE_PUBLICATION, $submission->getId());
+        
+        if (!$payment) {
+            $request->redirect(null, null, 'pendingPayments');
+            return;
+        }
+        
+        $templateMgr = \APP\template\TemplateManager::getManager($request);
+        $templateMgr->assign([
+            'pageTitle' => 'Invoice #' . $payment->getId(),
+            'submission' => $submission,
+            'payment' => $payment,
+            'journal' => $context,
+            'user' => $request->getUser(),
+            'dateClean' => date('d M Y', strtotime($payment->getTimestamp()))
+        ]);
+        
+        return $templateMgr->display($this->getPlugin()->getTemplateResource('invoice.tpl'));
     }
 }

@@ -92,8 +92,8 @@ class EmsPubCorePlugin extends GenericPlugin
             // Hook into Workflow Settings > Submission to add Plan Tab
             Hook::add('Template::Settings::workflow::submission', [$this, 'addWorkflowSubmissionTab']);
             
-            // Hide upgrade banner for non-site-admins at journal level
-            Hook::add('TemplateManager::display', [$this, 'hideUpgradeBannerForNonAdmins']);
+            // Hook into TemplateManager::display to modify UI (Hide banner, Add Sidebar Item)
+            Hook::add('TemplateManager::display', [$this, 'modifyDisplay']);
             
             // Register page handler for plugin routes
             Hook::add('LoadHandler', [$this, 'setupPageHandler']);
@@ -216,19 +216,55 @@ class EmsPubCorePlugin extends GenericPlugin
     }
 
     /**
-     * Hide the OJS upgrade notification banner for non-site-admins
-     * Only Site Administrators should see the upgrade notification at journal level
+     * Modify Template Display
+     * 1. Hide upgrade banner for non-admins
+     * 2. Inject "Processing Payments" into Sidebar Menu
      */
-    public function hideUpgradeBannerForNonAdmins($hookName, $args)
+    public function modifyDisplay($hookName, $args)
     {
         $templateMgr = $args[0];
         $template = $args[1] ?? '';
         
-        // Only apply to management templates (journal settings pages)
+        // DEBUG:
+        // if ($template === 'layouts/backend.tpl' || strpos($template, 'backend') !== false) {
+        //    die('Hook running for: ' . $template . ' Menu: ' . var_export($templateMgr->getTemplateVars('menu'), true));
+        // }
+        
+        // 1. Hide Upgrade Banner
         if (strpos($template, 'management/') === 0) {
-            // If not a Site Admin, hide the upgrade banner
             if (!\PKP\security\Validation::isSiteAdmin()) {
                 $templateMgr->assign('newVersionAvailable', false);
+            }
+        }
+        
+        // 2. Inject Sidebar Item
+        // The sidebar menu is passed as 'state' to the Vue app, not as a Smarty variable (in 3.4+)
+        $menu = $templateMgr->getState('menu');
+        
+        if (is_array($menu)) {
+            $request = \APP\core\Application::get()->getRequest();
+            $user = $request->getUser();
+            $context = $request->getContext();
+            
+            if ($user && $context) {
+                 // Check if user has Author role
+                 $roleDao = \PKP\db\DAORegistry::getDAO('RoleDAO');
+                 $isAuthor = $roleDao->userHasRole($context->getId(), $user->getId(), \PKP\security\Role::ROLE_ID_AUTHOR);
+                 
+                 if ($isAuthor) {
+                     $url = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'pendingPayments');
+                     
+                     // Add new menu item
+                     $menu['processingPayments'] = [
+                         'name' => 'Processing Payments',
+                         'url' => $url,
+                         'isCurrent' => $request->getRequestedPage() === 'emspubcore' && $request->getRequestedOp() === 'pendingPayments',
+                         'icon' => 'Expander' 
+                     ];
+                     
+                     // Update the state
+                     $templateMgr->setState(['menu' => $menu]);
+                 }
             }
         }
         
@@ -803,8 +839,39 @@ class EmsPubCorePlugin extends GenericPlugin
         // Fetch modified template that iterates over plans
         $output .= $templateMgr->fetch($this->getTemplateResource('adminPlanTab.tpl'));
         
-        return Hook::CONTINUE;
+        return \PKP\plugins\Hook::CONTINUE;
     }
 
+    /**
+     * Add "Processing Payments" Link to Sidebar
+     */
+    public function addSidebarItem($hookName, $args)
+    {
+        $templateMgr = $args[1];
+        $output = &$args[2];
+        
+        $request = \APP\core\Application::get()->getRequest();
+        $user = $request->getUser();
+        
+        if (!$user) return \PKP\plugins\Hook::CONTINUE;
 
+        // Custom Menu Item HTML
+        $url = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'pendingPayments');
+        
+        // Use SVG for icon (e.g. credit card)
+        $icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-credit-card"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>';
+        
+        $item = '
+            <li>
+                <a href="' . $url . '" class="pkp_controllers_linkAction">
+                   <span class="app__sidebarIcon">' . $icon . '</span>
+                   <span class="app__sidebarLabel">Processing Payments</span>
+                </a>
+            </li>
+        ';
+        
+        $output .= $item;
+        
+        return \PKP\plugins\Hook::CONTINUE;
+    }
 }

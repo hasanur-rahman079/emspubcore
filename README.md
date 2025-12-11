@@ -88,6 +88,8 @@ For issues and feature requests, please contact support@emspub.com
 
 ## Development Workflow
 
+Run the dev server `php -S localhost:8000` from the root directory of the OJS installation.
+
 This plugin is maintained in a separate git repository.
 
 ### Repository Location
