@@ -97,6 +97,11 @@ class EmsPubCorePlugin extends GenericPlugin
             
             // Register page handler for plugin routes
             Hook::add('LoadHandler', [$this, 'setupPageHandler']);
+            // Register page handler for plugin routes
+            Hook::add('LoadHandler', [$this, 'setupPageHandler']);
+
+            // Override Payments Grid to add Article Details
+            Hook::add('LoadComponentHandler', [$this, 'setupGridHandler']);
         }
         
         return $success;
@@ -289,6 +294,26 @@ class EmsPubCorePlugin extends GenericPlugin
         return false;
     }
 
+    /**
+     * Intercept Grid Handler loading to inject our Enhanced Payments Grid
+     */
+    public function setupGridHandler($hookName, $args)
+    {
+        $component =& $args[0];
+        $componentInstance =& $args[2];
+
+        if ($component === 'grid.subscriptions.PaymentsGridHandler') {
+            // Load our custom handler and dependencies
+            require_once(__DIR__ . '/controllers/grid/EmsPubPaymentsGridCellProvider.php');
+            require_once(__DIR__ . '/controllers/grid/EmsPubPaymentsGridHandler.php');
+            
+            // Instantiate and assign our custom handler
+            $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsPubPaymentsGridHandler();
+            return true;
+        }
+
+        return false;
+    }
     /**
      * @copydoc Plugin::isSitePlugin()
      * This plugin should only be manageable by Site Admins
