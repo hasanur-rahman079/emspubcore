@@ -56,6 +56,9 @@ msgstr "Premium"
 msgid "plugins.generic.emspubcore.submissionsPerMonth"
 msgstr "Submissions/Year"
 
+msgid "plugins.generic.emspubcore.submissionsPerYear"
+msgstr "Submissions/Year"
+
 msgid "plugins.generic.emspubcore.monthlyPrice"
 msgstr "Monthly Price"
 

@@ -21,8 +21,8 @@ A comprehensive OJS plugin that provides journal subscription plans with submiss
 
 ### 🎯 Journal Subscription Plans
 - **Tiered Plans**: Free, Basic, and Premium tiers with configurable submission limits
-- **Flexible Billing**: Monthly and yearly billing cycles with annual discounts
-- **Usage Tracking**: Automatic monthly submission counting per journal
+- **Yearly Billing**: Annual subscription billing with Stripe integration
+- **Usage Tracking**: Automatic yearly submission counting per journal
 - **Real-time Display**: Editor dashboard badge showing remaining submissions
 
 ### 💳 Stripe Payment Integration
@@ -143,9 +143,8 @@ Use any future expiry date, any 3-digit CVC, and any postal code.
 
 **Upgrading Plan:**
 1. Click "Upgrade" on the plans page
-2. Select billing cycle (monthly/yearly)
-3. Complete payment via Stripe Checkout
-4. Plan is activated immediately
+2. Complete payment via Stripe Checkout
+3. Plan is activated immediately for one year
 
 ### For Authors
 
@@ -184,7 +183,7 @@ plugins/generic/emspubcore/
 │   ├── PlanDAO.php               # Site-level plan database operations
 │   ├── PaymentHistoryDAO.php     # Payment logging
 │   ├── StripePaymentHandler.php  # Stripe API integration
-│   └── SubmissionUsageDAO.php    # Monthly usage tracking
+│   └── SubmissionUsageDAO.php    # Yearly usage tracking
 ├── controllers/
 │   └── grid/                     # Grid handlers for admin views
 ├── templates/
@@ -207,8 +206,8 @@ plugins/generic/emspubcore/
 | journal_plan_id | INTEGER | Primary key |
 | journal_id | INTEGER | FK to journals |
 | plan_type | VARCHAR | free/basic/premium |
-| submissions_limit | INTEGER | Monthly submission cap |
-| billing_cycle | VARCHAR | monthly/yearly |
+| submissions_limit | INTEGER | Yearly submission cap |
+| billing_cycle | VARCHAR | yearly (default) |
 | plan_start_date | DATETIME | Subscription start |
 | plan_end_date | DATETIME | Subscription expiry |
 | stripe_customer_id | VARCHAR | Stripe customer reference |

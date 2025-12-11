@@ -71,8 +71,56 @@
             Total: {$payment->getAmount()|string_format:"%.2f"} {$payment->getCurrencyCode()}
         </div>
         
-        <div style="margin-top: 60px; color: #777; font-size: 0.9em; text-align: center; border-top: 1px solid #eee; padding-top: 20px;">
-            Thank you for publishing with {$journal->getLocalizedName()}.
+        <div style="margin-top: 50px; border-top: 2px solid #0ABF96; padding-top: 25px;">
+            {* Journal Info *}
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 5px;">
+                    {$journal->getLocalizedName()}
+                </div>
+                {if $journal->getData('onlineIssn')}
+                    <div style="font-size: 12px; color: #64748b;">ISSN: {$journal->getData('onlineIssn')}</div>
+                {/if}
+            </div>
+            
+            {* Principal Contact *}
+            <div style="background: #f8fafc; border-radius: 8px; padding: 15px 20px; margin-bottom: 20px;">
+                <div style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
+                    Contact Information
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px; font-size: 13px; color: #1e293b;">
+                    {if $journal->getData('contactName')}
+                        <div>
+                            <span style="color: #64748b;">Contact:</span> 
+                            <strong>{$journal->getData('contactName')}</strong>
+                        </div>
+                    {/if}
+                    {if $journal->getData('contactEmail')}
+                        <div>
+                            <span style="color: #64748b;">Email:</span> 
+                            <a href="mailto:{$journal->getData('contactEmail')}" style="color: #0ABF96; text-decoration: none;">{$journal->getData('contactEmail')}</a>
+                        </div>
+                    {/if}
+                    {if $journal->getData('contactPhone')}
+                        <div>
+                            <span style="color: #64748b;">Phone:</span> 
+                            {$journal->getData('contactPhone')}
+                        </div>
+                    {/if}
+                </div>
+                {if $journal->getData('mailingAddress')}
+                    <div style="margin-top: 10px; font-size: 12px; color: #64748b;">
+                        {$journal->getData('mailingAddress')|nl2br}
+                    </div>
+                {/if}
+            </div>
+            
+            {* Footer *}
+            <div style="text-align: center; color: #777; font-size: 12px;">
+                Thank you for publishing with us!<br>
+                <a href="https://www.ems.pub" target="_blank" style="color: #0ABF96; text-decoration: none; font-weight: 600;">Editorial Management System (EMS)</a>
+                <span style="color: #ccc; margin: 0 8px;">|</span>
+                <a href="mailto:support@ems.pub" style="color: #64748b; text-decoration: none;">support@ems.pub</a>
+            </div>
         </div>
         
         <div class="no-print" style="margin-top: 40px; text-align: center;">

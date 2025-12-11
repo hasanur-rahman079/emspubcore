@@ -49,7 +49,7 @@
 			<DEFAULT VALUE="free" />
 		</field>
 		<field name="billing_cycle" type="C2" size="20">
-			<DEFAULT VALUE="monthly" />
+			<DEFAULT VALUE="yearly" />
 		</field>
 		<field name="submissions_limit" type="I4">
 			<NOTNULL />
@@ -77,7 +77,7 @@
 
 	<!--
 	  * TABLE emspubcore_submission_usage
-	  * Tracks monthly submission counts per journal
+	  * Tracks yearly submission counts per journal (aggregated by month)
 	  -->
 	<table name="emspubcore_submission_usage">
 		<field name="usage_id" type="I8">
@@ -94,7 +94,7 @@
 			<NOTNULL />
 			<DEFAULT VALUE="0" />
 		</field>
-		<descr>Monthly submission usage tracking per journal.</descr>
+		<descr>Yearly submission usage tracking per journal (stored by month for granularity).</descr>
 		<index name="emspubcore_submission_usage_pkey">
 			<col>journal_id</col>
 			<col>year_month</col>

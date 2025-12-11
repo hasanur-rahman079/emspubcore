@@ -470,7 +470,7 @@ class EmsPubCorePageHandler extends Handler
                 
                 // Retrieve metadata
                 $planType = $session->metadata->plan_type ?? 'free';
-                $billingCycle = $session->metadata->billing_cycle ?? 'monthly';
+                $billingCycle = $session->metadata->billing_cycle ?? 'yearly';
                 
                 // Update Plan in DB
                 $journalPlanDAO = \PKP\db\DAORegistry::getDAO('JournalPlanDAO');

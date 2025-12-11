@@ -597,7 +597,6 @@ class EmsPubCorePlugin extends GenericPlugin
         }
 
         $planType = '...';
-        $title = 'Loading plan details...';
         
         try {
             $plan = $this->getJournalPlanDAO()->getByJournalId($context->getId());
@@ -617,6 +616,15 @@ class EmsPubCorePlugin extends GenericPlugin
         
         $isOverLimit = $currentUsage >= $limit;
         
+        // Build informative tooltip
+        $remaining = $limit - $currentUsage;
+        $validUntil = ($plan && $plan->getPlanEndDate()) ? date('M j, Y', strtotime($plan->getPlanEndDate())) : 'N/A';
+        $title = ucfirst($planType) . ' Plan | ' . $currentUsage . ' of ' . $limit . ' submissions used | ' . $remaining . ' remaining | Valid until: ' . $validUntil;
+        
+        if ($isOverLimit) {
+            $title .= ' | ⚠️ Limit Reached - Click to Upgrade';
+        }
+        
         // Dynamic Styles
         if ($isOverLimit) {
             // Warning Style (Red)
@@ -624,7 +632,6 @@ class EmsPubCorePlugin extends GenericPlugin
             $badgeColor = '#fff';
             $badgeBorder = '#d43f3a';
             $textColor = '#fff';
-            $title .= ' - Limit Reached! Click to Upgrade.';
         } else {
             // Normal Style (White/Blue)
             $badgeBg = '#fff';
@@ -654,27 +661,18 @@ class EmsPubCorePlugin extends GenericPlugin
 
         return \PKP\plugins\Hook::CONTINUE;
         } catch (\Exception $e) {
-            // If data fetch fails, we will still render the badge but with '?' to indicate valid hook but invalid data
-            $planType = 'Error';
-            $remaining = '?';
+            // If data fetch fails, show error state
             error_log('EmsPubCorePlugin Error: ' . $e->getMessage());
+            
+            $badgeHtml = '
+            <div class="app__headerAction" style="display: flex; align-items: center; margin-left: auto; margin-right: 10px;">
+                <div title="Error loading plan details. Please refresh." style="background: #fff; color: #d9534f; padding: 2px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; display: flex; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); cursor: help; white-space: nowrap; border: 1px solid #e0e0e0; align-items: center; height: 24px;">
+                    <span style="text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; color: #d9534f;">Error</span>
+                </div>
+            </div>';
+            $output .= $badgeHtml;
+            return \PKP\plugins\Hook::CONTINUE;
         }
-
-        // Always output HTML if we are this far
-        // We use INLINE STYLES to guarantee appearance and position
-        // We use margin-left: auto to push it to the right, but before the user nav
-        
-        $badgeHtml = '
-        <div class="app__headerAction" style="display: flex; align-items: center; margin-left: auto; margin-right: 10px;">
-            <div title="' . $title . '" style="background: #fff; color: #006798; padding: 2px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; display: flex; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); cursor: help; white-space: nowrap; border: 1px solid #e0e0e0; align-items: center; height: 24px;">
-                <span style="text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; color: #555; padding-right: 8px; border-right: 1px solid #eee; line-height: 1;">' . ucfirst($planType) . '</span> 
-                <span style="color: #006798; line-height: 1;">' . $remaining . '/' . $limit . '</span>
-            </div>
-        </div>';
-
-        $output .= $badgeHtml;
-
-        return \PKP\plugins\Hook::CONTINUE;
     }
 
 

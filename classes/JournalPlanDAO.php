@@ -151,7 +151,7 @@ class JournalPlanDAO extends DAO
         $plan->setPlanId((int) $row['plan_id']);
         $plan->setJournalId((int) $row['journal_id']);
         $plan->setPlanType($row['plan_type']);
-        $plan->setBillingCycle($row['billing_cycle'] ?? 'monthly');
+        $plan->setBillingCycle($row['billing_cycle'] ?? 'yearly');
         $plan->setSubmissionsLimit((int) $row['submissions_limit']);
         $plan->setStripeSubscriptionId($row['stripe_subscription_id'] ?? null);
         $plan->setStripeCustomerId($row['stripe_customer_id'] ?? null);
