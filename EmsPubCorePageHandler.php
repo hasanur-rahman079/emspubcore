@@ -192,26 +192,67 @@ class EmsPubCorePageHandler extends Handler
             }
             
             if ($paymentStatus) {
+                // Determine the actual amount
+                $defaultFee = (float) $context->getData('publicationFee');
+                if ($completedPayment) {
+                    $actualAmount = $completedPayment->getAmount();
+                } elseif (isset($queuedPayment) && $queuedPayment) {
+                    $actualAmount = $queuedPayment->getAmount();
+                } else {
+                    $actualAmount = $defaultFee;
+                }
+                
+                // Check if this is a discounted payment
+                $isDiscounted = ($actualAmount > 0 && $actualAmount < $defaultFee);
+                
                 $pendingPayments[] = [
                     'id' => $submission->getId(),
                     'title' => $submission->getCurrentPublication()->getLocalizedTitle(),
-                    'amount' => $completedPayment ? $completedPayment->getAmount() : $context->getData('publicationFee'), 
+                    'amount' => $actualAmount,
                     'currency' => $context->getData('currency'),
                     'status' => $paymentStatus,
                     'payUrl' => $payUrl,
                     'invoiceUrl' => $invoiceUrl,
-                    'date' => $completedPayment ? $completedPayment->getTimestamp() : null
+                    'date' => $completedPayment ? $completedPayment->getTimestamp() : null,
+                    'isDiscounted' => $isDiscounted,
+                    'originalFee' => $defaultFee,
                 ];
             }
         }
+        
+        // Pagination settings
+        $itemsPerPage = 10;
+        $currentPage = max(1, (int) $request->getUserVar('page'));
+        $totalItems = count($pendingPayments);
+        $totalPages = max(1, ceil($totalItems / $itemsPerPage));
+        
+        // Ensure current page is within bounds
+        $currentPage = min($currentPage, $totalPages);
+        
+        // Slice array for current page
+        $offset = ($currentPage - 1) * $itemsPerPage;
+        $pagedPayments = array_slice($pendingPayments, $offset, $itemsPerPage);
+        
+        // Calculate pagination display range
+        $startItem = $totalItems > 0 ? $offset + 1 : 0;
+        $endItem = min($offset + $itemsPerPage, $totalItems);
         
         $templateMgr = \APP\template\TemplateManager::getManager($request);
         $this->setupTemplate($request);
         $templateMgr->setupBackendPage();
         
+        // Build base URL for pagination
+        $baseUrl = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'pendingPayments');
+        
         $templateMgr->assign([
-            'pendingPayments' => $pendingPayments,
+            'pendingPayments' => $pagedPayments,
             'pageTitle' => 'Article Processing Payments',
+            'currentPage' => $currentPage,
+            'totalPages' => $totalPages,
+            'totalItems' => $totalItems,
+            'startItem' => $startItem,
+            'endItem' => $endItem,
+            'baseUrl' => $baseUrl,
         ]);
         
         return $templateMgr->display($this->getPlugin()->getTemplateResource('pendingPayments.tpl'));

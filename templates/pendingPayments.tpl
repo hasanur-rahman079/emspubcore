@@ -172,7 +172,15 @@
                                 </div>
                             </td>
                             <td>
-                                <span class="payment-amount" style="font-weight: 600; color: #333;">{$payment.amount|string_format:"%.2f"} {$payment.currency}</span>
+                                {if $payment.isDiscounted}
+                                    <span class="payment-amount" style="font-weight: 600; color: #059669;">{$payment.amount|string_format:"%.2f"} {$payment.currency}</span>
+                                    <div style="margin-top: 4px;">
+                                        <span style="font-size: 11px; text-decoration: line-through; color: #9ca3af;">{$payment.originalFee|string_format:"%.2f"} {$payment.currency}</span>
+                                        <span style="display: inline-block; font-size: 10px; color: #059669; background-color: #d1fae5; margin-left: 6px; font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">Discounted</span>
+                                    </div>
+                                {else}
+                                    <span class="payment-amount" style="font-weight: 600; color: #333;">{$payment.amount|string_format:"%.2f"} {$payment.currency}</span>
+                                {/if}
                             </td>
                             <td>
                                 {if $payment.status == 'Paid'}
@@ -206,13 +214,34 @@
                 </tbody>
             </table>
             
-            {if $pendingPayments|@count > 0}
+            {if $totalItems > 0}
             <div class="pkp_pagination" style="margin-top: 20px; display: flex; justify-content: flex-end; align-items: center; gap: 16px;">
-                 <span style="color: #6b7280;">Showing 1 to {$pendingPayments|@count} of {$pendingPayments|@count} entries</span>
+                 <span style="color: #6b7280;">Showing {$startItem} to {$endItem} of {$totalItems} entries</span>
                  <div class="pkp_pagination_pages" style="display: flex; gap: 4px;">
-                    <button class="pkpButton" disabled style="min-width: 32px; padding: 4px 8px; background: #fff; border: 1px solid #e5e7eb; color: #d1d5db;">&lt;</button>
-                    <button class="pkpButton pkpButton--active" style="background-color: #fff; color: #000; border: 1px solid #d1d5db; min-width: 32px; padding: 4px 8px;">1</button>
-                    <button class="pkpButton" disabled style="min-width: 32px; padding: 4px 8px; background: #fff; border: 1px solid #e5e7eb; color: #d1d5db;">&gt;</button>
+                    {* Previous Button *}
+                    {if $currentPage > 1}
+                        <a href="{$baseUrl}?page={$currentPage-1}" class="pkpButton" style="min-width: 32px; padding: 4px 8px; background: #fff; border: 1px solid #d1d5db; color: #374151; text-decoration: none;">&lt;</a>
+                    {else}
+                        <button class="pkpButton" disabled style="min-width: 32px; padding: 4px 8px; background: #fff; border: 1px solid #e5e7eb; color: #d1d5db;">&lt;</button>
+                    {/if}
+                    
+                    {* Page Numbers *}
+                    {section name=page loop=$totalPages+1 start=1}
+                        {if $smarty.section.page.index <= $totalPages}
+                            {if $smarty.section.page.index == $currentPage}
+                                <button class="pkpButton pkpButton--active" style="background-color: #006798; color: #fff; border: 1px solid #006798; min-width: 32px; padding: 4px 8px;">{$smarty.section.page.index}</button>
+                            {else}
+                                <a href="{$baseUrl}?page={$smarty.section.page.index}" class="pkpButton" style="background-color: #fff; color: #374151; border: 1px solid #d1d5db; min-width: 32px; padding: 4px 8px; text-decoration: none;">{$smarty.section.page.index}</a>
+                            {/if}
+                        {/if}
+                    {/section}
+                    
+                    {* Next Button *}
+                    {if $currentPage < $totalPages}
+                        <a href="{$baseUrl}?page={$currentPage+1}" class="pkpButton" style="min-width: 32px; padding: 4px 8px; background: #fff; border: 1px solid #d1d5db; color: #374151; text-decoration: none;">&gt;</a>
+                    {else}
+                        <button class="pkpButton" disabled style="min-width: 32px; padding: 4px 8px; background: #fff; border: 1px solid #e5e7eb; color: #d1d5db;">&gt;</button>
+                    {/if}
                  </div>
             </div>
             {/if}
