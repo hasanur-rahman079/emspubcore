@@ -159,7 +159,19 @@ Use any future expiry date, any 3-digit CVC, and any postal code.
 3. Complete payment via Stripe
 4. Download invoice when status shows "Paid"
 
-### For Editors
+### For Editors/Admins
+
+**Pending Payments Tab (Admin View):**
+- Navigate to **Payments → Pending Payments** tab
+- View all submissions with requested publication payments
+- Columns: ID, Title, Amount, Payment Type, Actions (View link)
+- Sorted by most recent first
+- Only shows articles where payment was explicitly requested
+
+**Plugin Management (Site Admins Only):**
+- Only Site Administrators can enable/disable the EmsPubCore plugin
+- Journal Managers and Editors cannot modify plugin settings
+- Plugin tab is hidden from non-admin users in Website Settings
 
 **Monitoring Usage:**
 - View remaining submissions in the dashboard header badge
@@ -242,6 +254,7 @@ plugins/generic/emspubcore/
 | Method | URL | Description |
 |--------|-----|-------------|
 | GET | `/emspubcore/pendingPayments` | Author payment dashboard |
+| GET | `/emspubcore/pendingPaymentsAdmin` | Admin pending payments view |
 | GET | `/emspubcore/plans` | Plan selection page |
 | POST | `/emspubcore/checkout` | Initiate Stripe checkout |
 | GET | `/emspubcore/success` | Payment success callback |
