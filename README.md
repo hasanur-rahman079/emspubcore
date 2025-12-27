@@ -35,7 +35,7 @@ A comprehensive OJS plugin that provides journal subscription plans with submiss
 - **Payment Management**: Track pending, paid, and waived publication fees
 - **Discounted Fees**: Support for custom discounted publication fees (via Discounted Fee Plugin)
 - **Invoice Generation**: Downloadable PDF invoices for completed payments
-- **Author Dashboard**: "Processing Payments" page for authors to view/pay fees
+- **Author Dashboard**: "My Invoices" page for authors to view/pay fees
 
 ---
 
@@ -149,7 +149,7 @@ Use any future expiry date, any 3-digit CVC, and any postal code.
 ### For Authors
 
 **Viewing Payment Status:**
-1. Access **My Submissions → Processing Payments** from the sidebar
+1. Access **My Submissions → My Invoices** from the sidebar
 2. View all submissions with payment requirements
 3. See payment status: Pending, Paid, or Waived
 
@@ -353,4 +353,4 @@ For issues and feature requests:
 
 ---
 
-*Last updated: December 2024*
+*Last updated: December 2025*

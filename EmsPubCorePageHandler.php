@@ -83,6 +83,8 @@ class EmsPubCorePageHandler extends Handler
                 return $this->deletePlan($args, $request);
             case 'pendingPayments':
                 return $this->pendingPayments($args, $request);
+            case 'pendingPaymentsAdmin':
+                return $this->pendingPaymentsAdmin($args, $request);
             case 'paySubmission':
                 return $this->paySubmission($args, $request);
             case 'downloadInvoice':
@@ -246,7 +248,7 @@ class EmsPubCorePageHandler extends Handler
         
         $templateMgr->assign([
             'pendingPayments' => $pagedPayments,
-            'pageTitle' => 'Article Processing Payments',
+            'pageTitle' => 'Article Processing Charges (APCs)',
             'currentPage' => $currentPage,
             'totalPages' => $totalPages,
             'totalItems' => $totalItems,
@@ -256,6 +258,139 @@ class EmsPubCorePageHandler extends Handler
         ]);
         
         return $templateMgr->display($this->getPlugin()->getTemplateResource('pendingPayments.tpl'));
+    }
+
+    /**
+     * Show Pending Payments for Admin/Manager (Grid Tab)
+     */
+    public function pendingPaymentsAdmin($args, $request)
+    {
+        $context = $request->getContext();
+        $user = $request->getUser();
+        
+        if (!$context || !$user) {
+             $request->redirect(null, 'login');
+             return;
+        }
+
+        // Check permission: JM, Admin, or SubManager
+        $isAuthorized = \PKP\security\Validation::isSiteAdmin() || 
+                       \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $context->getId()) || 
+                       \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUBSCRIPTION_MANAGER, $context->getId());
+
+        if (!$isAuthorized) {
+            header('HTTP/1.0 403 Forbidden');
+            echo 'Access denied.';
+            exit;
+        }
+
+        // DEBUG: Check if we reach this point
+        error_log('EmsPubCore: pendingPaymentsAdmin - User authorized, proceeding...');
+
+        // Get payment manager and DAOs
+        $paymentManager = \APP\core\Application::get()->getPaymentManager($context);
+        $completedPaymentDao = \PKP\db\DAORegistry::getDAO('OJSCompletedPaymentDAO');
+        $queuedPaymentDao = \PKP\db\DAORegistry::getDAO('QueuedPaymentDAO');
+        
+        $pendingPayments = [];
+        
+        // Only get submissions that have an active payment request notification
+        // This is the key change - only show articles where payment was explicitly requested
+        $paymentNotifications = \PKP\notification\Notification::where('context_id', (int) $context->getId())
+            ->where('type', \PKP\notification\Notification::NOTIFICATION_TYPE_PAYMENT_REQUIRED)
+            ->get();
+
+        // Track which submissions we've already processed (avoid duplicates)
+        $processedSubmissions = [];
+
+        // Iterate through payment notifications, not all submissions
+        foreach ($paymentNotifications as $notification) {
+            if ($notification->assocType != \APP\core\Application::ASSOC_TYPE_QUEUED_PAYMENT) {
+                continue;
+            }
+            
+            $queuedPayment = $queuedPaymentDao->getById($notification->assocId);
+            if (!$queuedPayment || $queuedPayment->getType() != $paymentManager::PAYMENT_TYPE_PUBLICATION) {
+                continue;
+            }
+            
+            $submissionId = $queuedPayment->getAssocId();
+            
+            // Skip if already processed
+            if (in_array($submissionId, $processedSubmissions)) {
+                continue;
+            }
+            $processedSubmissions[] = $submissionId;
+            
+            // Check if already paid
+            $completedPayment = $completedPaymentDao->getByAssoc(null, $paymentManager::PAYMENT_TYPE_PUBLICATION, $submissionId);
+            if ($completedPayment) {
+                // Already paid - could delete stale notification here
+                continue;
+            }
+            
+            // Get submission
+            $submission = \APP\facades\Repo::submission()->get($submissionId);
+            if (!$submission || $submission->getData('contextId') != $context->getId()) {
+                continue;
+            }
+            
+            // Get title - skip incomplete
+            $publication = $submission->getCurrentPublication();
+            if (!$publication) continue;
+            
+            $title = $publication->getLocalizedTitle();
+            if (empty(trim($title))) continue;
+            
+            $actualAmount = $queuedPayment->getAmount();
+            if ($actualAmount <= 0) continue;
+
+            $viewUrl = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'workflow', 'index', [$submission->getId(), 4]); 
+
+            $pendingPayments[] = [
+                'id' => $submission->getId(),
+                'title' => $title,
+                'amount' => $actualAmount,
+                'currency' => $context->getData('currency'),
+                'paymentType' => 'Publication Fee',
+                'viewUrl' => $viewUrl,
+            ];
+        }
+        
+        // Sort by ID descending (most recent first)
+        usort($pendingPayments, function($a, $b) {
+            return $b['id'] - $a['id'];
+        });
+        
+        // Pagination
+        $itemsPerPage = 15;
+        $currentPage = max(1, (int) $request->getUserVar('page'));
+        $totalItems = count($pendingPayments);
+        $totalPages = max(1, ceil($totalItems / $itemsPerPage));
+        $currentPage = min($currentPage, $totalPages);
+        $offset = ($currentPage - 1) * $itemsPerPage;
+        $pagedPayments = array_slice($pendingPayments, $offset, $itemsPerPage);
+        
+        $templateMgr = \APP\template\TemplateManager::getManager($request);
+        $this->setupTemplate($request);
+        $templateMgr->setupBackendPage();
+        
+        $baseUrl = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'pendingPaymentsAdmin');
+        
+        $templateMgr->assign([
+            'pendingPayments' => $pagedPayments,
+            'pageTitle' => 'Pending Publication Payments (' . $totalItems . ')',
+            'currentPage' => $currentPage,
+            'totalPages' => $totalPages,
+            'totalItems' => $totalItems,
+            'startItem' => $totalItems > 0 ? $offset + 1 : 0,
+            'endItem' => min($offset + $itemsPerPage, $totalItems),
+            'baseUrl' => $baseUrl,
+        ]);
+        
+        // Return JSON message response for OJS tab AJAX loading
+        $html = $templateMgr->fetch($this->getPlugin()->getTemplateResource('pendingPaymentsAdmin.tpl'));
+        return new \PKP\core\JSONMessage(true, $html);
     }
 
     /**

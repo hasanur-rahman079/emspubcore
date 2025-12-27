@@ -23,12 +23,16 @@ class EmsPubPaymentsGridHandler extends PaymentsGridHandler
         // Add "Article Details" column using our custom provider
         $cellProvider = new EmsPubPaymentsGridCellProvider($request);
         
+        // Get the template path from plugin
+        $plugin = \PKP\plugins\PluginRegistry::getPlugin('generic', 'emspubcoreplugin');
+        $templatePath = $plugin ? $plugin->getTemplateResource('gridCellHtml.tpl') : null;
+        
         $this->addColumn(
             new GridColumn(
                 'details',
                 'common.title', 
                 null,
-                null,
+                $templatePath,
                 $cellProvider
             )
         );

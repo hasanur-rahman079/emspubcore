@@ -80,7 +80,7 @@ class EmsPubCorePlugin extends GenericPlugin
             // Hook into submission creation to track usage
             Hook::add('Submission::add', [$this, 'trackSubmissionUsage']);
             
-            // Hook into Backend Header to show limit badge
+            // Hook into Backend Header to show limit badge and inject tabs
             Hook::add('Template::Layout::Backend::HeaderActions', [$this, 'renderHeaderBadge']);
 
             // Hook into Admin Wizard sidebar to add Plan Tab (Journal Level)
@@ -91,6 +91,9 @@ class EmsPubCorePlugin extends GenericPlugin
             
             // Hook into Workflow Settings > Submission to add Plan Tab
             Hook::add('Template::Settings::workflow::submission', [$this, 'addWorkflowSubmissionTab']);
+            
+            // Override payments/index.tpl to add Pending Payments tab
+            Hook::add('TemplateResource::getFilename', [$this, 'overridePaymentsTemplate']);
             
             // Hook into TemplateManager::display to modify UI (Hide banner, Add Sidebar Item)
             Hook::add('TemplateManager::display', [$this, 'modifyDisplay']);
@@ -221,9 +224,38 @@ class EmsPubCorePlugin extends GenericPlugin
     }
 
     /**
+     * Override payments/index.tpl to add Pending Payments tab
+     */
+    public function overridePaymentsTemplate($hookName, $args)
+    {
+        $filePath = &$args[0];
+        
+        // Only override payments/index.tpl
+        if (strpos($filePath, 'payments/index.tpl') !== false || 
+            strpos($filePath, 'payments' . DIRECTORY_SEPARATOR . 'index.tpl') !== false) {
+            
+            $request = \APP\core\Application::get()->getRequest();
+            $context = $request->getContext();
+            
+            // Only override for authorized users
+            if ($context && (\PKP\security\Validation::isSiteAdmin() || 
+                \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $context->getId()) || 
+                \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUBSCRIPTION_MANAGER, $context->getId()))) {
+                
+                $overridePath = $this->getPluginPath() . '/templates/payments/index.tpl';
+                if (file_exists($overridePath)) {
+                    $filePath = $overridePath;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
      * Modify Template Display
      * 1. Hide upgrade banner for non-admins
-     * 2. Inject "Processing Payments" into Sidebar Menu
+     * 2. Inject "My Invoices" into Sidebar Menu
      */
     public function modifyDisplay($hookName, $args)
     {
@@ -236,13 +268,64 @@ class EmsPubCorePlugin extends GenericPlugin
         // }
         
         // 1. Hide Upgrade Banner
-        if (strpos($template, 'management/') === 0) {
+        if (strpos($template, 'management/') === 0 || $template === 'admin/index.tpl' || $template === 'admin/settings.tpl') {
             if (!\PKP\security\Validation::isSiteAdmin()) {
                 $templateMgr->assign('newVersionAvailable', false);
+                
+                // Hide Plugins tab for non-admins via head injection
+                $style = '<style>
+                    #plugins-button, 
+                    #installedPlugins-button, 
+                    #pluginGallery-button,
+                    .pkp_tab_plugins,
+                    [id^="plugins-button"],
+                    [id^="installedPlugins-button"],
+                    [id^="pluginGallery-button"],
+                    [aria-controls="plugins"],
+                    [aria-controls="installedPlugins"],
+                    [aria-controls="pluginGallery"] { 
+                        display: none !important; 
+                    }
+                </style>';
+                $templateMgr->addHeader('emsHidePlugins', $style, ['contexts' => ['backend']]);
             }
         }
         
-        // 2. Inject Sidebar Item
+        // 2. Inject "Pending Payments" tab into Subscriptions page (for Admins/Managers)
+        if ($template === 'payments/index.tpl') {
+            $request = \APP\core\Application::get()->getRequest();
+            $context = $request->getContext();
+            if ($context && (\PKP\security\Validation::isSiteAdmin() || 
+                \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $context->getId()) || 
+                \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUBSCRIPTION_MANAGER, $context->getId()))) {
+                
+                $url = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'pendingPaymentsAdmin');
+                $script = '<script>
+                    $(function() {
+                        var injectPendingTab = function() {
+                            var $tabs = $("#subscriptionsTabs");
+                            if ($tabs.length && !$("#pendingPaymentsAdminTab").length) {
+                                var tabList = $tabs.find("> ul");
+                                if (tabList.length) {
+                                    tabList.append(\'<li id="pendingPaymentsAdminTab"><a name="pendingPaymentsAdmin" href="' . $url . '">Pending Payments</a></li>\');
+                                    if (typeof $tabs.tabs === "function") {
+                                        try { $tabs.tabs("refresh"); } catch(e) {}
+                                    }
+                                }
+                            }
+                        };
+                        // Multiple attempts to ensure it works with OJS async loading
+                        injectPendingTab();
+                        setTimeout(injectPendingTab, 500);
+                        setTimeout(injectPendingTab, 1000);
+                        $(document).ajaxComplete(injectPendingTab);
+                    });
+                </script>';
+                $templateMgr->addHeader('emsPendingPaymentsTab', $script, ['contexts' => ['backend']]);
+            }
+        }
+        
+        // 3. Inject Sidebar Item
         // The sidebar menu is passed as 'state' to the Vue app, not as a Smarty variable (in 3.4+)
         $menu = $templateMgr->getState('menu');
         
@@ -261,10 +344,10 @@ class EmsPubCorePlugin extends GenericPlugin
                      
                      // Add new menu item
                      $menu['processingPayments'] = [
-                         'name' => 'Processing Payments',
+                         'name' => 'My Invoices',
                          'url' => $url,
                          'isCurrent' => $request->getRequestedPage() === 'emspubcore' && $request->getRequestedOp() === 'pendingPayments',
-                         'icon' => 'Expander' 
+                         'icon' => 'Payment' 
                      ];
                      
                      // Update the state
@@ -310,6 +393,15 @@ class EmsPubCorePlugin extends GenericPlugin
             // Instantiate and assign our custom handler
             $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsPubPaymentsGridHandler();
             return true;
+        }
+
+        // Block unauthorized access to Plugin management grids
+        if ($component === 'grid.settings.plugins.SettingsPluginGridHandler' || $component === 'grid.plugins.PluginGalleryGridHandler') {
+            if (!\PKP\security\Validation::isSiteAdmin()) {
+                header('HTTP/1.1 403 Forbidden');
+                echo 'Access Denied: Only EMS Site Administrators can manage plugins.';
+                exit;
+            }
         }
 
         return false;
@@ -497,7 +589,7 @@ class EmsPubCorePlugin extends GenericPlugin
                 'stripePublishableKey' => $this->getSetting(0, 'stripePublishableKey'),
                 'stripeSecretKey' => $this->getSetting(0, 'stripeSecretKey'),
                 'stripeWebhookSecret' => $this->getSetting(0, 'stripeWebhookSecret'),
-                'stripeTestMode' => $this->getSetting(0, 'stripeTestMode'),
+                'stripeTestMode' => (bool) $this->getSetting(0, 'stripeTestMode'),
             ]);
             
             $output .= $templateMgr->fetch($this->getTemplateResource('adminPaymentGatewaysTab.tpl'));
@@ -866,7 +958,7 @@ class EmsPubCorePlugin extends GenericPlugin
     }
 
     /**
-     * Add "Processing Payments" Link to Sidebar
+     * Add "My Invoices" Link to Sidebar
      */
     public function addSidebarItem($hookName, $args)
     {
@@ -888,7 +980,7 @@ class EmsPubCorePlugin extends GenericPlugin
             <li>
                 <a href="' . $url . '" class="pkp_controllers_linkAction">
                    <span class="app__sidebarIcon">' . $icon . '</span>
-                   <span class="app__sidebarLabel">Processing Payments</span>
+                   <span class="app__sidebarLabel">My Invoices</span>
                 </a>
             </li>
         ';

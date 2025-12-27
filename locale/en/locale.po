@@ -144,7 +144,7 @@ msgid "common.status"
 msgstr "Status"
 
 msgid "plugins.generic.emspubcore.menu.processingPayments"
-msgstr "Processing Payments"
+msgstr "My Invoices"
 
 msgid "plugins.generic.emspubcore.search.placeholder"
 msgstr "Search by name or article id"
