@@ -77,8 +77,9 @@ class EmsPubCorePlugin extends GenericPlugin
             // Hook into submission validation to check limits
             Hook::add('Submission::validateSubmit', [$this, 'checkSubmissionLimit']);
             
-            // Hook into submission creation to track usage
+            // Hook into submission creation/update to track finalized usage
             Hook::add('Submission::add', [$this, 'trackSubmissionUsage']);
+            Hook::add('Submission::edit', [$this, 'trackSubmissionUsage']);
             
             // Hook into Backend Header to show limit badge and inject tabs
             Hook::add('Template::Layout::Backend::HeaderActions', [$this, 'renderHeaderBadge']);
@@ -647,11 +648,29 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function trackSubmissionUsage($hookName, $args)
     {
-        $submission = $args[0];
-        $contextId = $submission->getData('contextId');
+        if ($hookName === 'Submission::add') {
+            $submission = $args[0];
+            // Only count if it's already finalized (unlikely on add but possible via API)
+            if (!$submission->getData('submissionProgress')) {
+                $contextId = $submission->getData('contextId');
+                if ($contextId) {
+                    $this->getSubmissionUsageDAO()->incrementCount($contextId);
+                }
+            }
+        } elseif ($hookName === 'Submission::edit') {
+            $newSubmission = $args[0];
+            $oldSubmission = $args[1];
+            $params = $args[2];
 
-        if ($contextId) {
-            $this->getSubmissionUsageDAO()->incrementCount($contextId);
+            // Transition from in-progress to finalized
+            if (!empty($oldSubmission->getData('submissionProgress')) && 
+                isset($params['submissionProgress']) && $params['submissionProgress'] === '') {
+                
+                $contextId = $newSubmission->getData('contextId');
+                if ($contextId) {
+                    $this->getSubmissionUsageDAO()->incrementCount($contextId);
+                }
+            }
         }
 
         return Hook::CONTINUE;
