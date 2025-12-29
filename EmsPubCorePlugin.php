@@ -326,7 +326,26 @@ class EmsPubCorePlugin extends GenericPlugin
             }
         }
         
-        // 3. Inject Sidebar Item
+        // 3. Inject Favicon if missing (Backend only)
+        $request = \APP\core\Application::get()->getRequest();
+        $context = $request->getContext();
+        $site = $request->getSite();
+
+        // Check if a favicon is already set at the context or site level
+        $favicon = $context ? $context->getLocalizedData('favicon') : $site->getLocalizedData('favicon');
+        
+        if (empty($favicon)) {
+            // Ultimate fallback to EMS favicon from this plugin
+            // This ensures a consistent "EMS" branding in the dashboard when no other favicon is set
+            $faviconUrl = $request->getBaseUrl() . '/' . $this->getPluginPath() . '/images/favicon.png';
+            $templateMgr->addHeader(
+                'emsThemeFavicon',
+                '<link rel="icon" type="image/png" href="' . $faviconUrl . '">',
+                ['contexts' => ['backend']] // Frontend is typically handled by themes
+            );
+        }
+
+        // 4. Inject Sidebar Item
         // The sidebar menu is passed as 'state' to the Vue app, not as a Smarty variable (in 3.4+)
         $menu = $templateMgr->getState('menu');
         
