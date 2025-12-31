@@ -50,10 +50,10 @@ class EmsPubCoreSettingsForm extends Form
     public function initData()
     {
         $this->_data = [
-            'stripePublishableKey' => $this->plugin->getSetting(0, 'stripePublishableKey'),
-            'stripeSecretKey' => $this->plugin->getSetting(0, 'stripeSecretKey'),
-            'stripeWebhookSecret' => $this->plugin->getSetting(0, 'stripeWebhookSecret'),
-            'stripeTestMode' => $this->plugin->getSetting(0, 'stripeTestMode'),
+            'stripePublishableKey' => $this->plugin->getSetting(null, 'stripePublishableKey'),
+            'stripeSecretKey' => $this->plugin->getSetting(null, 'stripeSecretKey'),
+            'stripeWebhookSecret' => $this->plugin->getSetting(null, 'stripeWebhookSecret'),
+            'stripeTestMode' => $this->plugin->getSetting(null, 'stripeTestMode'),
         ];
     }
 
@@ -87,11 +87,11 @@ class EmsPubCoreSettingsForm extends Form
      */
     public function execute(...$functionArgs)
     {
-        // Site-level settings (contextId = 0)
-        $this->plugin->updateSetting(0, 'stripePublishableKey', $this->getData('stripePublishableKey'), 'string');
-        $this->plugin->updateSetting(0, 'stripeSecretKey', $this->getData('stripeSecretKey'), 'string');
-        $this->plugin->updateSetting(0, 'stripeWebhookSecret', $this->getData('stripeWebhookSecret'), 'string');
-        $this->plugin->updateSetting(0, 'stripeTestMode', (bool) $this->getData('stripeTestMode'), 'bool');
+        // Site-level settings (contextId = null)
+        $this->plugin->updateSetting(null, 'stripePublishableKey', $this->getData('stripePublishableKey'), 'string');
+        $this->plugin->updateSetting(null, 'stripeSecretKey', $this->getData('stripeSecretKey'), 'string');
+        $this->plugin->updateSetting(null, 'stripeWebhookSecret', $this->getData('stripeWebhookSecret'), 'string');
+        $this->plugin->updateSetting(null, 'stripeTestMode', (bool) $this->getData('stripeTestMode'), 'bool');
 
         parent::execute(...$functionArgs);
     }

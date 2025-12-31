@@ -478,7 +478,7 @@ class EmsPubCorePlugin extends GenericPlugin
                 $templateMgr = TemplateManager::getManager($request);
                 $templateMgr->registerPlugin('function', 'plugin_url', $this->smartyPluginUrl(...));
 
-                $form = new EmsPubCoreSettingsForm($this, $context ? $context->getId() : 0);
+                $form = new EmsPubCoreSettingsForm($this, $context ? $context->getId() : null);
 
                 if ($request->getUserVar('save')) {
                     $form->readInputData();
@@ -606,10 +606,10 @@ class EmsPubCorePlugin extends GenericPlugin
         // 3. Payment Gateways Tab
         try {
             $templateMgr->assign([
-                'stripePublishableKey' => $this->getSetting(0, 'stripePublishableKey'),
-                'stripeSecretKey' => $this->getSetting(0, 'stripeSecretKey'),
-                'stripeWebhookSecret' => $this->getSetting(0, 'stripeWebhookSecret'),
-                'stripeTestMode' => (bool) $this->getSetting(0, 'stripeTestMode'),
+                'stripePublishableKey' => $this->getSetting(null, 'stripePublishableKey'),
+                'stripeSecretKey' => $this->getSetting(null, 'stripeSecretKey'),
+                'stripeWebhookSecret' => $this->getSetting(null, 'stripeWebhookSecret'),
+                'stripeTestMode' => (bool) $this->getSetting(null, 'stripeTestMode'),
             ]);
             
             $output .= $templateMgr->fetch($this->getTemplateResource('adminPaymentGatewaysTab.tpl'));
@@ -812,7 +812,7 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function getStripePublishableKey()
     {
-        return $this->getSetting(0, 'stripePublishableKey');
+        return $this->getSetting(null, 'stripePublishableKey');
     }
 
     /**
@@ -820,7 +820,7 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function getStripeSecretKey()
     {
-        return $this->getSetting(0, 'stripeSecretKey');
+        return $this->getSetting(null, 'stripeSecretKey');
     }
 
     /**
@@ -828,7 +828,7 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function getStripeWebhookSecret()
     {
-        return $this->getSetting(0, 'stripeWebhookSecret');
+        return $this->getSetting(null, 'stripeWebhookSecret');
     }
 
     /**
@@ -836,7 +836,7 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function isStripeTestMode()
     {
-        return (bool) $this->getSetting(0, 'stripeTestMode');
+        return (bool) $this->getSetting(null, 'stripeTestMode');
     }
     /**
      * Add Plan UI Tab to Admin Wizard

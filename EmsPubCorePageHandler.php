@@ -471,7 +471,7 @@ class EmsPubCorePageHandler extends Handler
             'currentUsage' => $currentUsage,
             'planLimits' => $limits,
             'planPrices' => $prices,
-            'stripePublishableKey' => $this->getPlugin()->getSetting(0, 'stripePublishableKey'),
+            'stripePublishableKey' => $this->getPlugin()->getSetting(null, 'stripePublishableKey'),
         ]);
 
         return $templateMgr->display($this->getPlugin()->getTemplateResource('plans.tpl'));
@@ -520,7 +520,7 @@ class EmsPubCorePageHandler extends Handler
             return;
         }
 
-        $secretKey = $this->getPlugin()->getSetting(0, 'stripeSecretKey');
+        $secretKey = $this->getPlugin()->getSetting(null, 'stripeSecretKey');
         if (!$secretKey) {
             echo 'Payment gateway not configured.';
             return;
@@ -586,7 +586,7 @@ class EmsPubCorePageHandler extends Handler
              return;
         }
 
-        $secretKey = $this->getPlugin()->getSetting(0, 'stripeSecretKey');
+        $secretKey = $this->getPlugin()->getSetting(null, 'stripeSecretKey');
         
         if (!class_exists('\Stripe\Stripe')) {
              if (file_exists($this->getPlugin()->getPluginPath() . '/vendor/autoload.php')) {
@@ -827,10 +827,10 @@ class EmsPubCorePageHandler extends Handler
                  throw new \Exception('Plugin instance could not be loaded.');
             }
 
-            $plugin->updateSetting(0, 'stripePublishableKey', $publishableKey, 'string');
-            $plugin->updateSetting(0, 'stripeSecretKey', $secretKey, 'string');
-            $plugin->updateSetting(0, 'stripeWebhookSecret', $webhookSecret, 'string');
-            $plugin->updateSetting(0, 'stripeTestMode', $testMode, 'bool');
+            $plugin->updateSetting(null, 'stripePublishableKey', $publishableKey, 'string');
+            $plugin->updateSetting(null, 'stripeSecretKey', $secretKey, 'string');
+            $plugin->updateSetting(null, 'stripeWebhookSecret', $webhookSecret, 'string');
+            $plugin->updateSetting(null, 'stripeTestMode', $testMode, 'bool');
             
             // Redirect using standard method
             $url = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'admin', 'settings', null, null, 'emspubcorePaymentGateways');
