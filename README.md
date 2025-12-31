@@ -31,11 +31,11 @@ A comprehensive OJS plugin that provides journal subscription plans with submiss
 - **Test Mode**: Development sandbox for testing payments
 - **Multiple Currencies**: Supports various currencies via Stripe
 
-### 📄 Article Processing Charges (APC)
-- **Payment Management**: Track pending, paid, and waived publication fees
-- **Discounted Fees**: Support for custom discounted publication fees (via Discounted Fee Plugin)
-- **Invoice Generation**: Downloadable PDF invoices for completed payments
-- **Author Dashboard**: "My Invoices" page for authors to view/pay fees
+### 💰 Advanced Discount & Pricing
+- **Plan Discounts**: Set global sale prices for any plan tier (e.g., $350 → $320).
+- **Journal-Specific Discounts**: Apply additional %-based discounts to specific journals.
+- **Stacked Logic**: Journal discounts apply on top of plan sale prices automatically.
+- **Admin Management**: Dedicated tabs for Journal Management and Global Payment History.
 
 ---
 
@@ -176,6 +176,18 @@ Use any future expiry date, any 3-digit CVC, and any postal code.
 **Monitoring Usage:**
 - View remaining submissions in the dashboard header badge
 - Format: `Plan Name: Used/Limit` (e.g., "Basic: 45/100")
+
+### 🏷️ Discount Documentation
+
+The plugin supports two types of discounts that **stack** together:
+
+1.  **Standard Plan Discount**: Set a "Discounted Price" in the **Submission Plans** tab. This is a global sale price visible to all journals.
+2.  **Journal-Specific Discount**: Set a "Discount (%)" override in the **Journal Management** tab. This is a special rate for a specific journal.
+
+**Calculation Formula:**
+`Final Price = (Plan Base or Sale Price) * (1 - Journal Discount %)`
+
+*Example: If a Plan is on sale for $320 and the Journal has a 10% discount, the final checkout price will be $288 ($320 - $32).*
 
 ---
 

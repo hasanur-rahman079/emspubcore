@@ -47,7 +47,7 @@ try {
 }
 
 // Get Stripe secret key
-$stmt = $pdo->prepare("SELECT setting_value FROM plugin_settings WHERE plugin_name = 'emspubcoreplugin' AND setting_name = 'stripeSecretKey' AND context_id = 0");
+$stmt = $pdo->prepare("SELECT setting_value FROM plugin_settings WHERE plugin_name = 'emspubcoreplugin' AND setting_name = 'stripeSecretKey' AND COALESCE(context_id, 0) = 0");
 $stmt->execute();
 $secretKey = $stmt->fetchColumn();
 

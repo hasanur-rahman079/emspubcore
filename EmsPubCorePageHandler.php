@@ -83,6 +83,8 @@ class EmsPubCorePageHandler extends Handler
                 return $this->deletePlan($args, $request);
             case 'pendingPayments':
                 return $this->pendingPayments($args, $request);
+            case 'saveJournalDiscount':
+                return $this->saveJournalDiscount($args, $request);
             case 'pendingPaymentsAdmin':
                 return $this->pendingPaymentsAdmin($args, $request);
             case 'paySubmission':
@@ -503,11 +505,14 @@ class EmsPubCorePageHandler extends Handler
         $planType = $request->getUserVar('plan');
         $billingCycle = $request->getUserVar('billing'); 
 
-        $validPlans = ['basic', 'premium'];
-        if (!in_array($planType, $validPlans)) {
-             echo 'Invalid plan.'; 
+        if ($planType === 'free' || strpos($planType, 'free') !== false) {
+             echo 'Free plans do not require checkout.'; 
              return;
         }
+        
+        $validPlans = ['basic', 'premium', 'standard', 'growth', 'institutional', 'mega-journal', 'globalpublisher', 'consortium'];
+        // Note: For now we keep basic/premium but the list is growing. 
+        // We should really fetch prices from DB.
 
         $prices = [
             'basic' => ['monthly' => 2900, 'yearly' => 29000],
@@ -710,9 +715,41 @@ class EmsPubCorePageHandler extends Handler
         // Fetch dynamic limits
         $limits = \APP\plugins\generic\emspubcore\EmsPubCorePlugin::getPlanLimits();
         if (!isset($limits[$planKey])) {
-            $planKey = 'free';
+            // Fallback to the first available plan if 'free' is not found
+            if (isset($limits['free'])) {
+                $planKey = 'free';
+            } else {
+                $keys = array_keys($limits);
+                $planKey = $keys[0] ?? 'free';
+            }
         }
-        $limit = $limits[$planKey];
+        $limit = $limits[$planKey] ?? 0;
+
+        // Security Check: Only allow direct assignment if it's a free plan ($0)
+        // Site Admins can override this.
+        if (!\PKP\security\Validation::isSiteAdmin()) {
+            $planDAO = $this->getPlanDAO();
+            $allPlans = $planDAO->getAll();
+            $targetPlan = null;
+            foreach ($allPlans as $p) {
+                if (strtolower(str_replace(' ', '', $p->getName())) === strtolower(str_replace(' ', '', $planKey))) {
+                    $targetPlan = $p;
+                    break;
+                }
+            }
+
+            if ($targetPlan) {
+                $basePrice = $targetPlan->getDiscountedPrice() ?: $targetPlan->getPrice();
+                $journalDiscount = (int)$this->getPlugin()->getSetting($journalId, 'journalDiscount');
+                $finalPrice = $basePrice * (1 - $journalDiscount / 100);
+                
+                if ($finalPrice > 0) {
+                     header('HTTP/1.0 403 Forbidden');
+                     echo 'Paid plans must be purchased via Checkout.';
+                     exit;
+                }
+            }
+        }
 
         $plan = $journalPlanDAO->getByJournalId($journalId);
 
@@ -786,6 +823,30 @@ class EmsPubCorePageHandler extends Handler
         }
 
         $request->redirect(null, 'admin', 'settings', null, null, 'emspubcoreSitePlans');
+    }
+
+    /**
+     * Save Journal Discount (AJAX)
+     */
+    public function saveJournalDiscount($args, $request)
+    {
+        if (!\PKP\security\Validation::isSiteAdmin()) {
+            return new \PKP\core\JSONMessage(false, 'Access denied.');
+        }
+
+        $journalId = (int) $request->getUserVar('journalId');
+        $discount = (int) $request->getUserVar('discount');
+
+        if (!$journalId) {
+            return new \PKP\core\JSONMessage(false, 'Invalid journal ID.');
+        }
+
+        // Clamp discount between 0 and 100
+        $discount = max(0, min(100, $discount));
+
+        $this->getPlugin()->updateSetting($journalId, 'journalDiscount', $discount, 'int');
+
+        return new \PKP\core\JSONMessage(true);
     }
 
     /**

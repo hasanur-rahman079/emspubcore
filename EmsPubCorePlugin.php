@@ -557,53 +557,60 @@ class EmsPubCorePlugin extends GenericPlugin
             error_log('EmsPubCorePlugin: SitePlansTab Error ' . $e->getMessage());
         }
 
-        // 2. Journal Payments Tab
+        // 2. Journal Management Tab (New - for Status & Discounts)
         try {
             $contextDao = \PKP\db\DAORegistry::getDAO('JournalDAO');
             $contexts = $contextDao->getAll();
-            $journalPayments = [];
+            $journalManagement = [];
             $journalPlanCtxDAO = $this->getJournalPlanDAO();
-            $paymentWrapperDAO = $this->getPaymentHistoryDAO();
 
             while ($journal = $contexts->next()) {
                 $jId = (int) $journal->getId();
                 $plan = $journalPlanCtxDAO->getByJournalId($jId);
                 
-                // Plan Info
                 $planName = $plan ? ucfirst($plan->getPlanType()) : 'Free';
-                
                 $subDateRaw = $plan ? $plan->getPlanStartDate() : null;
                 $subDate = $subDateRaw ? date('Y-m-d', strtotime($subDateRaw)) : '-';
-                
                 $nextPaymentRaw = $plan ? $plan->getPlanEndDate() : null;
                 $nextPayment = $nextPaymentRaw ? date('Y-m-d', strtotime($nextPaymentRaw)) : '-';
+                $journalDiscount = (int) $this->getSetting($jId, 'journalDiscount');
 
-                // Last Payment Info
-                $lastPaymentDate = '-';
-                $history = $paymentWrapperDAO->getByJournalId($jId);
-                if (!empty($history) && is_array($history)) {
-                     $lastPayment = reset($history);
-                     if (!empty($lastPayment->payment_date)) {
-                        $lastPaymentDate = date('Y-m-d', strtotime($lastPayment->payment_date));
-                     }
-                }
-
-                $journalPayments[] = [
+                $journalManagement[] = [
+                    'id' => $jId,
                     'name' => $journal->getLocalizedName(),
                     'subscriptionDate' => $subDate,
                     'planName' => $planName,
-                    'lastPayment' => $lastPaymentDate,
-                    'nextPayment' => $nextPayment
+                    'nextPayment' => $nextPayment,
+                    'discount' => $journalDiscount
                 ];
             }
-            $templateMgr->assign('emspubcoreJournalPayments', $journalPayments);
+            $templateMgr->assign('emspubcoreJournalManagement', $journalManagement);
+            $output .= $templateMgr->fetch($this->getTemplateResource('adminJournalManagementTab.tpl'));
+        } catch (\Exception $e) {
+             error_log('EmsPubCorePlugin: JournalManagementTab Error ' . $e->getMessage());
+        }
+
+        // 3. Payment History Tab (Repurposed - Site-wide log)
+        try {
+            $paymentWrapperDAO = $this->getPaymentHistoryDAO();
+            $allPayments = $paymentWrapperDAO->getAll();
             
+            // Add journal names to payments
+            $contextDao = \PKP\db\DAORegistry::getDAO('JournalDAO');
+            foreach ($allPayments as &$payment) {
+                if ($payment->journal_id) {
+                    $journal = $contextDao->getById($payment->journal_id);
+                    $payment->journal_name = $journal ? $journal->getLocalizedName() : 'Unknown';
+                }
+            }
+            
+            $templateMgr->assign('emspubcoreAllPayments', $allPayments);
             $output .= $templateMgr->fetch($this->getTemplateResource('adminJournalPaymentsTab.tpl'));
         } catch (\Exception $e) {
             error_log('EmsPubCorePlugin: JournalPaymentsTab Error ' . $e->getMessage());
         }
 
-        // 3. Payment Gateways Tab
+        // 4. Payment Gateways Tab
         try {
             $templateMgr->assign([
                 'stripePublishableKey' => $this->getSetting(null, 'stripePublishableKey'),
@@ -980,7 +987,8 @@ class EmsPubCorePlugin extends GenericPlugin
                                    \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUB_EDITOR, $journalId),
             'emspubcoreCurrentUsage' => $this->getSubmissionUsageDAO()->getYearlyCount($journalId),
             'emspubcoreCurrentLimit' => $currentLimit,
-            'emspubcoreJournalPath' => $context->getPath()
+            'emspubcoreJournalPath' => $context->getPath(),
+            'emspubcoreJournalDiscount' => (int) $this->getSetting($journalId, 'journalDiscount')
         ]);
 
         // Add CSS for the plan cards

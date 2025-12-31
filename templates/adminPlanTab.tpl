@@ -50,6 +50,7 @@
         
         <input type="hidden" id="currentActivePlan" value="{$currentPlanKey}" />
         <input type="hidden" id="selectedPlanInput" value="{$currentPlanKey}" />
+        <input type="hidden" id="selectedPlanPrice" value="0" />
         <input type="hidden" id="emspubcoreJournalId" value="{$emspubcoreJournalId}" />
         <input type="hidden" id="emspubcoreBaseUrl" value="{$baseUrl}" />
         <input type="hidden" id="isPlanActive" value="{$isPlanActive}" />
@@ -58,18 +59,32 @@
         <div class="emspubcore-card-container">
             {foreach from=$emspubcorePlansObject item=plan}
                 {assign var=planKey value=$plan->getName()|lower|replace:' ':''}
-                {assign var=planPrice value=$plan->getDiscountedPrice()|default:$plan->getPrice()}
+                {assign var=baseEffectivePrice value=$plan->getDiscountedPrice()|default:$plan->getPrice()}
+                
+                {* Apply Journal Discount *}
+                {assign var=journalDiscountPct value=$emspubcoreJournalDiscount|default:0}
+                {assign var=finalPlanPrice value=$baseEffectivePrice}
+                {if $journalDiscountPct > 0}
+                    {assign var=discountAmount value=$baseEffectivePrice * $journalDiscountPct / 100}
+                    {assign var=finalPlanPrice value=$baseEffectivePrice - $discountAmount}
+                {/if}
 
                 <div class="emspubcore-plan-card {if $planKey == $currentPlanKey}selected current{/if}" 
                      data-plan="{$planKey}" 
-                     data-price="{$planPrice}">
+                     data-price="{$finalPlanPrice}">
                     <div class="emspubcore-card-header">
                         <span class="emspubcore-card-title">{$plan->getName()|escape}</span>
                         <div class="emspubcore-radio"></div>
                     </div>
                     
                     <div class="emspubcore-price-container">
-                        {if $plan->getDiscountedPrice() && $plan->getDiscountedPrice() > 0}
+                        {if $journalDiscountPct > 0}
+                            <span class="emspubcore-price" style="text-decoration: line-through; color: #999; font-size: 16px;">${$baseEffectivePrice|string_format:"%.0f"}</span>
+                            <span class="emspubcore-price-discounted" style="font-size: 24px; color: #008a00; font-weight: 700;">${$finalPlanPrice|string_format:"%.0f"}</span>
+                            <div style="font-size: 11px; color: #008a00; font-weight: bold; text-transform: uppercase; margin-top: 2px;">
+                                Journal Discount ({$journalDiscountPct}%)
+                            </div>
+                        {elseif $plan->getDiscountedPrice() && $plan->getDiscountedPrice() > 0}
                             <span class="emspubcore-price" style="text-decoration: line-through; color: #999; font-size: 18px;">${$plan->getPrice()|string_format:"%.0f"}</span>
                             <span class="emspubcore-price-discounted" style="font-size: 24px; color: #008a00; font-weight: 700;">${$plan->getDiscountedPrice()|string_format:"%.0f"}</span>
                             <div style="font-size: 11px; color: #008a00; font-weight: bold; text-transform: uppercase; margin-top: 2px;">{translate key="plugins.generic.emspubcore.discountedPrice"}</div>
@@ -104,7 +119,7 @@
                 <form id="activateFreePlanForm" method="POST" action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="assignPlan"}" style="display: inline;">
                     {csrf}
                     <input type="hidden" name="journalId" value="{$emspubcoreJournalId}" />
-                    <input type="hidden" name="planType" value="free" />
+                    <input type="hidden" name="planType" id="activatePlanType" value="free" />
                     <button class="pkp_button pkp_button_primary" id="emspubcoreActivateBtn" type="submit" style="display: none;">
                         Activate Free Plan
                     </button>
@@ -207,6 +222,8 @@
             
             function updateButtonState() {
                 var selectedPlan = $('#selectedPlanInput').val();
+                var $selectedCard = $('.emspubcore-plan-card.selected');
+                var selectedPrice = parseFloat($selectedCard.data('price')) || 0;
                 var $upgradeBtn = $('#emspubcoreUpgradeBtn');
                 var $activateBtn = $('#emspubcoreActivateBtn');
                 var $renewBtn = $('#emspubcoreRenewBtn');
@@ -225,13 +242,14 @@
                     $limitWarning.show();
                 }
                 
-                if (!isPlanActive && selectedPlan === 'free') {
+                if (!isPlanActive && selectedPrice === 0) {
                     // New journal with no active plan - show Activate Free Plan
-                    $activateBtn.show();
-                } else if (!isPlanActive && selectedPlan !== 'free') {
+                    $activateBtn.show().text('Activate ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1));
+                    $('#activatePlanType').val(selectedPlan);
+                } else if (!isPlanActive && selectedPrice > 0) {
                     // New journal selecting a paid plan - show upgrade
                     $upgradeBtn.show().text('Upgrade to ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1));
-                } else if (selectedPlan === currentPlan && currentPlan !== 'free') {
+                } else if (selectedPlan === currentPlan && selectedPrice > 0) {
                     // Same as current active paid plan - show renew option
                     if (isLimitReached) {
                         $renewBtn.show().text('Renew ' + currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) + ' Plan');
@@ -239,12 +257,13 @@
                         $renewBtn.show().text('Renew ' + currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) + ' (Reset Counter)');
                         $noteSpan.show().text('You can renew early to reset your submission counter.');
                     }
-                } else if (selectedPlan === currentPlan && currentPlan === 'free') {
+                } else if (selectedPlan === currentPlan && selectedPrice === 0) {
                     // On free plan - suggest upgrade
-                    $noteSpan.show().text('You are on the Free plan. Select a paid plan to upgrade and get more submissions.');
-                } else if (selectedPlan === 'free') {
-                    // Downgrade to free - not supported
-                    $noteSpan.show().text('Downgrading to Free plan is not available. Please contact support.');
+                    $noteSpan.show().text('You are on the ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) + ' plan. Select a paid plan to upgrade and get more submissions.');
+                } else if (selectedPrice === 0) {
+                    // Different free plan or activation of free plan when another was active (if allowed)
+                    $activateBtn.show().text('Activate ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1));
+                    $('#activatePlanType').val(selectedPlan);
                 } else {
                     // Different paid plan selected - show upgrade
                     $upgradeBtn.show().text('Upgrade to ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1));
@@ -256,13 +275,15 @@
                 if (!canEdit) return;
 
                 var plan = $(this).data('plan');
+                var price = $(this).data('price');
                 
                 // Update UI selection
                 $('.emspubcore-plan-card').removeClass('selected');
                 $(this).addClass('selected');
                 
-                // Update hidden input
+                // Update hidden inputs
                 $('#selectedPlanInput').val(plan);
+                $('#selectedPlanPrice').val(price);
                 
                 // Update button state
                 updateButtonState();

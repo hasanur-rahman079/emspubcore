@@ -150,7 +150,10 @@ msgid "plugins.generic.emspubcore.search.placeholder"
 msgstr "Search by name or article id"
 
 msgid "plugins.generic.emspubcore.journalPayments"
-msgstr "Journal Payments"
+msgstr "Payment History"
+
+msgid "plugins.generic.emspubcore.journalManagement"
+msgstr "Journal Management"
 
 msgid "plugins.generic.emspubcore.paymentGateways"
 msgstr "Payment gateways"

@@ -32,6 +32,21 @@ class PaymentHistoryDAO extends DAO
     }
 
     /**
+     * Get all payment history for all journals
+     *
+     * @return array
+     */
+    public function getAll()
+    {
+        return DB::table('emspubcore_payment_history as ph')
+            ->leftJoin('journals as j', 'ph.journal_id', '=', 'j.journal_id')
+            ->select('ph.*', 'j.path as journal_path')
+            ->orderBy('ph.payment_date', 'desc')
+            ->get()
+            ->toArray();
+    }
+
+    /**
      * Log a payment
      *
      * @param array $data
