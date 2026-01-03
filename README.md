@@ -232,6 +232,59 @@ The plugin supports two types of discounts that **stack** together:
 
 ---
 
+## 💰 Subscription & Pricing
+
+The EmsPubCore plugin implements a tiered subscription model designed for sustainability and scale. All plans are billed **annually** and integrated with Stripe and Paddle for seamless global transactions.
+
+### 📊 Subscription Tiers
+
+| Tier | Submission Limit | Ideal For | Key Benefit |
+|------|------------------|-----------|-------------|
+| **Free** | 5 Submissions/Year | New Journals | Zero-cost setup |
+| **Basic** | 100 Submissions/Year | Regular Journals | Affordable scaling |
+| **Premium** | 200 Submissions/Year | High-volume Journals | Lower cost per article |
+| **Enterprise** | Custom Limits | Publishing Houses | Dedicated support & unlimited scale |
+| **BSMIAB** | Custom Limits | Special Partners | Exclusive partnership rates |
+
+> [!NOTE]
+> All limits and prices are fully configurable by Site Administrators through the **Submission Plans** dashboard.
+
+### 🔄 Subscription Lifecycle & Carryover Rules
+
+We use a "Customer-First" carryover policy to ensure you never lose what you've paid for:
+
+1.  **Upgrade (Switching Plans)**: If you upgrade from Basic to Premium before your year is up, your **remaining unused submissions** from the Basic plan are automatically added to your new Premium limit.
+2.  **Renewal (Same Plan)**: When you renew the same plan tier, the submission counter resets to 0 and your new annual limit is applied for the upcoming year.
+3.  **Expiry**: If a plan expires without renewal, the journal reverts to the **Free Tier** (5 submissions/year) until a new plan is purchased.
+
+---
+
+## ❓ Frequently Asked Questions (FAQ)
+
+### Payments & Billing
+
+**Q: Which payment methods are supported?**
+A: We support all major credit cards, digital wallets (Apple Pay, Google Pay), and regional payment methods via Stripe and Paddle.
+
+**Q: Can I get a formal invoice for my institution?**
+A: Yes. Every successful transaction automatically generates a professional PDF invoice available for download in the **My Invoices** (for authors) or **Plan** (for journals) dashboard.
+
+**Q: How do stacked discounts work?**
+A: If a plan is on sale globally (e.g., 10% off Original Price) and your journal has a specific partner discount (e.g., 20% off), the discounts stack. Your final price will be `Sale Price * (1 - Partner Discount)`.
+
+### Plan Management
+
+**Q: What happens if I reach my submission limit?**
+A: New submissions will be temporarily restricted for that journal. You can either **Renew** your current plan early to reset the counter or **Upgrade** to a higher tier instantly.
+
+**Q: Do my unused submissions expire?**
+A: Unused submissions carry over **only during an upgrade**. During a standard annual renewal of the same plan, the counter resets to providing the full new limit for the next year.
+
+**Q: Can a Site Admin manually change my plan?**
+A: Yes. Site Administrators have an "Admin Override" feature to activate or upgrade plans manually (e.g., for partner journals or institutional grants) without a checkout step.
+
+---
+
 ## Architecture
 
 ### Directory Structure
@@ -470,36 +523,24 @@ ngrok http 8000
 ### Future Improvements
 
 #### High Priority (January 2026)
-- [x] **Paddle Webhook URL Display**: Added webhook URL field with copy button and webhook secret input to Site Settings → Payment Gateways. Webhook responds to GET with JSON status.
-- [ ] **CSRF Token Validation**: Templates need to pass session token correctly before validation can work. Current templates use `{$csrfToken}` which is never assigned.
-- [x] **Rate Limiting**: Implemented file-based rate limiter (`classes/RateLimiter.php`) applied to both Paddle and Stripe webhook handlers (60 req/min/IP).
-- [x] **Unit Tests**: Created PHPUnit test files in `tests/` directory for PaddlePaymentHandler and StripePaymentHandler.
-- [x] **Paddle APC Payment Bug Fix**: Fixed critical bug where Paddle APC payments didn't complete payment status. Changed success URL to route through `handle()` method which calls `fulfillQueuedPayment()`.
+- [x] **Paddle Webhook URL Display**: Added webhook URL field with copy button and webhook secret input to Site Settings → Payment Gateways.
+- [ ] **CSRF Token Validation**: Fix template token passing.
+- [x] **Rate Limiting**: Implemented 60 req/min/IP limiter.
+- [x] **Unit Tests**: Created test suite in `tests/`.
+- [x] **Paddle APC Payment Bug Fix**: Fixed payment completion status.
 
 #### Medium Priority
-- [ ] Refactor `EmsPubCorePageHandler.php` (1400+ lines) into smaller controllers:
+- [ ] Refactor handler into controllers. Refactor `EmsPubCorePageHandler.php` (1400+ lines) into smaller controllers:
   - `PaymentController`
   - `PlanController`
   - `WebhookController`
   - `InvoiceController`
-- [ ] Add input sanitization for plan names and IDs
-- [ ] In the individual journal level Plan tab, need a feature for the site admin can activate a plan or upgrade a plan without the payment step required. This can be an extra button for the site admin or any professional layout to manage this feature.
+- [ ] Add input sanitization.
+- [x] **Admin Assignment Feature**: Implemented site-admin manual plan assignment with professional UI and carryover logic.
 
 #### Low Priority
-- [ ] Email notifications for payment events
-- [ ] Dashboard analytics for payment trends
-
----
-
-## Plan Limits
-
-| Plan | Submissions/Month | Monthly | Yearly |
-|------|-------------------|---------|--------|
-| Free | 5 | - | - |
-| Basic | 100 | $29 | $290 |
-| Premium | 200 | $49 | $490 |
-
-*Note: Plan limits are configurable by Site Administrators.*
+- [ ] Email notifications.
+- [ ] Dashboard analytics.
 
 ---
 
@@ -517,5 +558,5 @@ For issues and feature requests:
 
 ---
 
-*Last updated: January 2026*
+*Last updated: January 3, 2026*
 

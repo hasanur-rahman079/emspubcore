@@ -830,29 +830,46 @@ class EmsPubCorePageHandler extends Handler
             }
         }
 
-        $plan = $journalPlanDAO->getByJournalId($journalId);
+        $oldPlan = $journalPlanDAO->getByJournalId($journalId);
+        $usageDAO = $this->getPlugin()->getSubmissionUsageDAO();
+        $remaining = 0;
+        
+        if ($oldPlan) {
+            $oldLimit = $oldPlan->getSubmissionsLimit();
+            $usage = $usageDAO->getYearlyCount($journalId);
+            $remaining = max(0, $oldLimit - $usage);
+        }
+
+        // Carryover only if it's an UPGRADE (different plan type)
+        $isUpgrade = ($oldPlan && strtolower($oldPlan->getPlanType()) !== strtolower($planKey));
+        $finalLimit = $limit + ($isUpgrade ? $remaining : 0);
 
         $startDate = \PKP\core\Core::getCurrentDate();
         $endDate = date('Y-m-d H:i:s', strtotime('+1 year', strtotime($startDate)));
 
-        if ($plan) {
-            $plan->setPlanType($planKey);
-            $plan->setSubmissionsLimit($limit);
-            $plan->setBillingCycle('yearly');
-            $plan->setPlanStartDate($startDate);
-            $plan->setPlanEndDate($endDate);
-            $plan->setIsActive(1);
-            $journalPlanDAO->updateObject($plan);
+        if ($oldPlan) {
+            $oldPlan->setPlanType($planKey);
+            $oldPlan->setSubmissionsLimit($finalLimit);
+            $oldPlan->setBillingCycle('yearly');
+            $oldPlan->setPlanStartDate($startDate);
+            $oldPlan->setPlanEndDate($endDate);
+            $oldPlan->setIsActive(1);
+            $journalPlanDAO->updateObject($oldPlan);
         } else {
             $newPlan = $journalPlanDAO->newDataObject();
             $newPlan->setJournalId($journalId);
             $newPlan->setPlanType($planKey);
-            $newPlan->setSubmissionsLimit($limit);
+            $newPlan->setSubmissionsLimit($finalLimit);
             $newPlan->setBillingCycle('yearly');
             $newPlan->setPlanStartDate($startDate);
             $newPlan->setPlanEndDate($endDate);
             $newPlan->setIsActive(1);
             $journalPlanDAO->insertObject($newPlan);
+        }
+
+        // Reset the submission usage counter ONLY if it's NOT an upgrade (i.e. it's a renewal/reset of same plan)
+        if (!$isUpgrade) {
+            $usageDAO->resetYearlyCount($journalId);
         }
 
         // Redirect back to appropriate page

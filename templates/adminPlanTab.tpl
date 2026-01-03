@@ -151,6 +151,43 @@
             {/if}
         </div>
 
+        {* Site Administrator: Manual Plan Assignment *}
+        {if $emspubcoreIsSiteAdmin}
+        <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 12px; color: white;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="m7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <h4 style="margin: 0; font-size: 16px; font-weight: 600;">Site Administrator Actions</h4>
+            </div>
+            <p style="margin: 0 0 15px; font-size: 13px; color: #94a3b8;">
+                As a site administrator, you can manually assign or change plans without requiring payment. 
+                Useful for comp accounts, partnerships, or troubleshooting.
+            </p>
+            
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <select id="adminPlanSelect" style="height: 48px; padding: 0 18px; border-radius: 8px; border: 2px solid #475569; background-color: #1e293b; color: #ffffff; font-size: 15px; min-width: 260px; cursor: pointer; -webkit-appearance: menulist; appearance: menulist;">
+                    {foreach from=$emspubcorePlansObject item=plan}
+                        {assign var=planKey value=$plan->getName()|lower|replace:' ':''}
+                        <option value="{$planKey}" {if $planKey == $currentPlanKey}selected{/if}>
+                            {$plan->getName()|escape} (${$plan->getPrice()|string_format:"%.0f"}/yr)
+                        </option>
+                    {/foreach}
+                </select>
+                
+                <button id="adminAssignPlanBtn" type="button" style="padding: 10px 20px; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); border: none; border-radius: 8px; color: #1e293b; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Assign Plan (No Payment)
+                </button>
+                
+                <span id="adminAssignStatus" style="font-size: 13px; color: #94a3b8;"></span>
+            </div>
+        </div>
+        {/if}
+
         <!-- 4. Payment History - Professional Design with Inline Styles -->
         <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e2e8f0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -393,6 +430,28 @@
             
             // Initialize button state
             updateButtonState();
+            
+            // ============ ADMIN ASSIGN PLAN ============
+            $('#adminAssignPlanBtn').click(function() {
+                var selectedPlan = $('#adminPlanSelect').val();
+                var $btn = $(this);
+                var $status = $('#adminAssignStatus');
+                
+                if (confirm('Assign the "' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) + '" plan to this journal without payment?\n\nThis will:\n• Set the plan to ' + selectedPlan + '\n• Activate for 1 year\n• Reset submission counter')) {
+                    $btn.prop('disabled', true).css('opacity', '0.6');
+                    $status.text('Assigning...').css('color', '#fbbf24');
+                    
+                    // Submit via form POST (CSRF protected)
+                    var form = $('<form>', {
+                        method: 'POST',
+                        action: '{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="assignPlan"}'
+                    });
+                    form.append('{csrf}');
+                    form.append($('<input>', { type: 'hidden', name: 'journalId', value: journalId }));
+                    form.append($('<input>', { type: 'hidden', name: 'planType', value: selectedPlan }));
+                    form.appendTo('body').submit();
+                }
+            });
             
             // ============ PAGINATION ============
             var itemsPerPage = 5;

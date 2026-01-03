@@ -1107,6 +1107,7 @@ class EmsPubCorePlugin extends GenericPlugin
             'emspubcoreCanEdit' => \PKP\security\Validation::isSiteAdmin() || 
                                    \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $journalId) ||
                                    \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUB_EDITOR, $journalId),
+            'emspubcoreIsSiteAdmin' => \PKP\security\Validation::isSiteAdmin(),
             'emspubcoreCurrentUsage' => $this->getSubmissionUsageDAO()->getYearlyCount($journalId),
             'emspubcoreCurrentLimit' => $currentLimit,
             'emspubcoreJournalPath' => $context->getPath(),

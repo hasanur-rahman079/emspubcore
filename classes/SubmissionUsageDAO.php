@@ -135,4 +135,18 @@ class SubmissionUsageDAO extends DAO
             ->where('year_month', 'like', $pattern)
             ->sum('submission_count');
     }
+
+    /**
+     * Reset submissions count for the current year (for plan renewals/assignments)
+     */
+    public function resetYearlyCount(int $journalId, ?int $year = null): void
+    {
+        $year = $year ?? (int) date('Y');
+        $pattern = $year . '-%';
+        
+        DB::table('emspubcore_submission_usage')
+            ->where('journal_id', $journalId)
+            ->where('year_month', 'like', $pattern)
+            ->delete();
+    }
 }
