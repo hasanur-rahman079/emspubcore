@@ -34,6 +34,15 @@ class StripeWebhookHandler extends Handler
      */
     public function webhook($args, $request)
     {
+        // Apply rate limiting (60 requests per minute per IP)
+        $rateLimiter = new \APP\plugins\generic\emspubcore\classes\RateLimiter(60, 60);
+        if (!$rateLimiter->check()) {
+            http_response_code(429);
+            header('Retry-After: 60');
+            echo json_encode(['error' => 'Too many requests. Please try again later.']);
+            return;
+        }
+        
         $plugin = PluginRegistry::getPlugin('generic', 'emspubcore');
         if (!$plugin) {
             http_response_code(500);

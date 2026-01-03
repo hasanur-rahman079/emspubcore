@@ -65,7 +65,7 @@
 		{/fbvFormSection}
 
 		{fbvFormSection}
-			{fbvElement type="text" name="paddleApcProductId" id="paddleApcProductId" label="plugins.generic.emspubcore.settings.paddleApcProductId" value="" size=$fbvStyles.size.MEDIUM}
+			{fbvElement type="text" name="paddleApcProductId" id="paddleApcProductId" label="plugins.generic.emspubcore.settings.paddleApcProductId" value=$paddleApcProductId size=$fbvStyles.size.MEDIUM}
 			<p class="pkp_help">{translate key="plugins.generic.emspubcore.settings.paddleApcProductId.description"}</p>
 		{/fbvFormSection}
 	{/fbvFormArea}

@@ -66,6 +66,23 @@
                         <label>{translate key="plugins.paymethod.emspubpaddle.settings.clientToken"}</label>
                         <input type="text" name="paddleClientToken" class="pkp_form_input_text" value="{$paddleClientToken|escape}" style="width: 100%;" />
                     </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>Paddle Webhook Secret</label>
+                        <input type="text" name="paddleWebhookSecret" class="pkp_form_input_text" value="{$paddleWebhookSecret|escape}" style="width: 100%;" placeholder="pdl_ntfset_..." />
+                        <p class="pkp_help" style="margin-top: 5px; font-size: 12px; color: #666;">Your Paddle webhook signing secret from the Paddle Dashboard.</p>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Webhook URL</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="paddleWebhookUrl" class="pkp_form_input_text" value="{$baseUrl}/index.php/$$/emspubcore/webhook" style="width: 100%; background-color: #f5f5f5;" readonly />
+                            <button type="button" id="copyWebhookUrl" class="pkp_button" style="white-space: nowrap;">Copy</button>
+                        </div>
+                        <p class="pkp_help" style="margin-top: 5px; font-size: 12px; color: #666;">
+                            Add this URL to your Paddle Dashboard → Developer Tools → Notifications. Replace <code>$$</code> with your journal path (e.g., <code>journal</code>).
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -92,6 +109,19 @@
                 
                 // Initial run
                 toggleBlocks();
+                
+                // Copy webhook URL to clipboard
+                $('#copyWebhookUrl').on('click', function() {
+                    var $input = $('#paddleWebhookUrl');
+                    $input.select();
+                    document.execCommand('copy');
+                    
+                    var $btn = $(this);
+                    $btn.text('Copied!').css('background-color', '#28a745').css('color', 'white');
+                    setTimeout(function() {
+                        $btn.text('Copy').css('background-color', '').css('color', '');
+                    }, 2000);
+                });
             });
         </script>
     </div>

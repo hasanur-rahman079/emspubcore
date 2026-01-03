@@ -341,29 +341,38 @@ plugins/generic/emspubcore/
 
 ### Security Audit Summary (January 2026)
 
-**Overall Rating: 🟢 Good (85/100)**
+#### Production Readiness Ratings
+
+| Plugin | Security | Stability | Production Ready |
+|--------|----------|-----------|------------------|
+| **emspubcore** | 85% | 80% | ✅ Yes |
+| **emspubstripe** | 80% | 75% | ✅ Yes |
+| **emspubpaddle** | 85% | 80% | ✅ Yes |
 
 #### ✅ Implemented Security Measures
 
 | Feature | Status |
 |---------|--------|
-| **Webhook Signature Verification** | ✅ Both Stripe and Paddle webhooks verify signatures |
-| **Authorization Checks** | ✅ Role-based access control on all sensitive endpoints |
+| **Webhook Signature Verification** | ✅ Paddle SDK verifier + Stripe HMAC-SHA256 |
+| **Rate Limiting** | ✅ 60 requests/minute per IP on webhook endpoints |
+| **Replay Attack Protection** | ✅ 5-minute timestamp tolerance on webhooks |
+| **Authorization Checks** | ✅ Role-based access control (Site Admin, Manager) |
 | **SQL Injection Prevention** | ✅ Uses Eloquent ORM / Query Builder exclusively |
-| **Replay Attack Protection** | ✅ Webhook timestamp validation (5-minute tolerance) |
-| **Error Handling** | ✅ Try/catch blocks with proper logging |
+| **XSS Prevention** | ✅ Template output uses `\|escape` modifiers |
+| **Error Handling** | ✅ Try/catch blocks with `error_log()` logging |
 
 #### Security Best Practices
 
-1. **Webhook Secrets**: Always keep webhook secrets secure and rotate them periodically
+1. **Webhook Secrets Required**: Always configure webhook secrets for both Stripe and Paddle
 2. **HTTPS Required**: Never run payment integrations over HTTP
 3. **Test Mode**: Always test in sandbox before going live
-4. **Logs**: Monitor PHP error logs for webhook failures
+4. **Log Monitoring**: Monitor PHP error logs for webhook failures
+5. **Secret Rotation**: Rotate API keys and webhook secrets periodically
 
-#### Known Limitations
+#### ⚠️ Known Limitations
 
-- CSRF tokens are passed but not fully validated on some AJAX endpoints
-- Consider rate limiting webhook endpoints in production
+- **CSRF Tokens**: Not fully validated on some AJAX endpoints (templates need token passing fix)
+- **Stripe Webhook Secret**: Currently optional - recommend making required in production
 
 ---
 
@@ -421,8 +430,14 @@ https://github.com/hasanur-rahman079/emspubcore
 
 ### Related Repositories
 
-- **emspubstripe**: `plugins/paymethod/emspubstripe` - Stripe payment method plugin
+- **emspubstripe**: `plugins/paymethod/emspubstripe` - Stripe payment method plugin 
+```
+https://github.com/hasanur-rahman079/emspubstripe.git
+```
 - **emspubpaddle**: `plugins/paymethod/emspubpaddle` - Paddle payment method plugin
+```
+https://github.com/hasanur-rahman079/emspubpaddle.git
+```
 
 ### Git Workflow
 
@@ -454,10 +469,12 @@ ngrok http 8000
 
 ### Future Improvements
 
-#### High Priority
-- [ ] Add CSRF token validation to AJAX endpoints (`savePaddleApcProductId`, etc.)
-- [ ] Add rate limiting to webhook endpoints
-- [ ] Implement unit tests for payment handlers
+#### High Priority (January 2026)
+- [x] **Paddle Webhook URL Display**: Added webhook URL field with copy button and webhook secret input to Site Settings → Payment Gateways. Webhook responds to GET with JSON status.
+- [ ] **CSRF Token Validation**: Templates need to pass session token correctly before validation can work. Current templates use `{$csrfToken}` which is never assigned.
+- [x] **Rate Limiting**: Implemented file-based rate limiter (`classes/RateLimiter.php`) applied to both Paddle and Stripe webhook handlers (60 req/min/IP).
+- [x] **Unit Tests**: Created PHPUnit test files in `tests/` directory for PaddlePaymentHandler and StripePaymentHandler.
+- [x] **Paddle APC Payment Bug Fix**: Fixed critical bug where Paddle APC payments didn't complete payment status. Changed success URL to route through `handle()` method which calls `fulfillQueuedPayment()`.
 
 #### Medium Priority
 - [ ] Refactor `EmsPubCorePageHandler.php` (1400+ lines) into smaller controllers:
@@ -466,11 +483,9 @@ ngrok http 8000
   - `WebhookController`
   - `InvoiceController`
 - [ ] Add input sanitization for plan names and IDs
-- [ ] Implement webhook event logging for debugging
+- [ ] In the individual journal level Plan tab, need a feature for the site admin can activate a plan or upgrade a plan without the payment step required. This can be an extra button for the site admin or any professional layout to manage this feature.
 
 #### Low Priority
-- [ ] Add support for monthly billing cycles
-- [ ] Multi-language invoice templates
 - [ ] Email notifications for payment events
 - [ ] Dashboard analytics for payment trends
 

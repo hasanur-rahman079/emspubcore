@@ -136,7 +136,7 @@
     {/literal}
 
     <h1 class="app__pageHeading">
-        {$pageTitle} <span style="color: #6b7280; font-weight: normal; margin-left: 8px;">({$pendingPayments|@count})</span>
+        {$pageTitle}
     </h1>
     
     <div class="app__contentPanel">

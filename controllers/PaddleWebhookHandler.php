@@ -26,6 +26,25 @@ class PaddleWebhookHandler extends Handler
      */
     public function webhook($args, $request)
     {
+        // Handle GET requests for health checks
+        if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'ok',
+                'message' => 'Webhook endpoint is active. This endpoint accepts POST requests from Paddle or Stripe.'
+            ]);
+            return;
+        }
+        
+        // Apply rate limiting (60 requests per minute per IP)
+        $rateLimiter = new \APP\plugins\generic\emspubcore\classes\RateLimiter(60, 60);
+        if (!$rateLimiter->check()) {
+            http_response_code(429);
+            header('Retry-After: 60');
+            echo json_encode(['error' => 'Too many requests. Please try again later.']);
+            return;
+        }
+        
         $plugin = PluginRegistry::getPlugin('generic', 'emspubcore');
         if (!$plugin) {
             http_response_code(500);

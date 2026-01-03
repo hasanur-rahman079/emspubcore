@@ -82,6 +82,15 @@ class EmsPubCorePageHandler extends Handler
      */
     public function authorize($request, &$args, $roleAssignments)
     {
+        $op = $request->getRequestedOp();
+        
+        // These operations are called from site-admin context (no journal)
+        // They do their own site admin check internally
+        $noContextOps = ['saveJournalDiscount', 'saveGatewaySettings', 'savePlan', 'deletePlan', 'webhook'];
+        if (in_array($op, $noContextOps)) {
+            return true;
+        }
+        
         $this->addPolicy(new \PKP\security\authorization\ContextAccessPolicy($request, $roleAssignments));
         return parent::authorize($request, $args, $roleAssignments);
     }
