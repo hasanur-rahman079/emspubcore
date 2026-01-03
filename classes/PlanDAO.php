@@ -45,6 +45,22 @@ class PlanDAO extends DAO
     }
 
     /**
+     * Get a plan by name
+     */
+    public function getByName($name)
+    {
+        $result = DB::table('emspubcore_plans')
+            ->where('name', $name)
+            ->first();
+
+        if (!$result) {
+            return null;
+        }
+
+        return $this->fromRow((array) $result);
+    }
+
+    /**
      * Get all plans
      */
     public function getAll()
@@ -70,6 +86,7 @@ class PlanDAO extends DAO
             'price' => $plan->getPrice(),
             'discounted_price' => $plan->getDiscountedPrice(),
             'submission_limit' => $plan->getSubmissionLimit(),
+            'paddle_price_id' => $plan->getPaddlePriceId(),
             'description' => $plan->getDescription(),
         ], 'plan_id');
 
@@ -89,6 +106,7 @@ class PlanDAO extends DAO
                 'price' => $plan->getPrice(),
                 'discounted_price' => $plan->getDiscountedPrice(),
                 'submission_limit' => $plan->getSubmissionLimit(),
+                'paddle_price_id' => $plan->getPaddlePriceId(),
                 'description' => $plan->getDescription(),
             ]);
     }
@@ -114,6 +132,7 @@ class PlanDAO extends DAO
         $plan->setPrice($row['price']);
         $plan->setDiscountedPrice($row['discounted_price']);
         $plan->setSubmissionLimit((int) $row['submission_limit']);
+        $plan->setPaddlePriceId($row['paddle_price_id'] ?? null);
         $plan->setDescription($row['description'] ?? '');
         return $plan;
     }

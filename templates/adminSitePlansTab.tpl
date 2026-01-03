@@ -9,12 +9,14 @@
                 var price = $(this).data('price');
                 var discounted = $(this).data('discounted');
                 var limit = $(this).data('limit');
+                var paddlePriceId = $(this).data('paddle');
 
                 $('#planForm input[name="planId"]').val(id);
                 $('#planForm input[name="name"]').val(name);
                 $('#planForm input[name="price"]').val(price);
                 $('#planForm input[name="discounted_price"]').val(discounted);
                 $('#planForm input[name="submission_limit"]').val(limit);
+                $('#planForm input[name="paddle_price_id"]').val(paddlePriceId);
                 $('#planForm button[type="submit"]').text('{translate key="common.save"}');
                 $('html, body').animate({ scrollTop: 0 }, 'fast');
             });
@@ -54,6 +56,13 @@
                     </div>
                 </div>
 
+                <!-- Paddle Price ID -->
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Paddle Price ID (Required for Paddle v2)</label>
+                    <input type="text" name="paddle_price_id" class="pkp_form_input_text" style="width: 100%;" placeholder="e.g. pri_01j7..." />
+                    <small style="color: #666;">Get this from your Paddle Dashboard > Product > Prices.</small>
+                </div>
+
                 <button class="pkp_button" type="submit">{translate key="common.add"}</button>
             </div>
         </form>
@@ -68,6 +77,7 @@
                     <th>{translate key="plugins.generic.emspubcore.price"} (Yearly USD)</th>
                     <th>{translate key="plugins.generic.emspubcore.discountedPrice"}</th>
                     <th>{translate key="plugins.generic.emspubcore.submissions"}</th>
+                    <th>Paddle Price ID</th>
                     <th>{translate key="common.action"}</th>
                 </tr>
             </thead>
@@ -91,12 +101,16 @@
                             {/if}
                         </td>
                         <td>
+                            <code>{$plan->getPaddlePriceId()|default:"-"}</code>
+                        </td>
+                        <td>
                             <a href="#" class="edit-plan" 
                                data-id="{$plan->getId()}" 
                                data-name="{$plan->getName()|escape}" 
                                data-price="{$plan->getPrice()}"
                                data-discounted="{$plan->getDiscountedPrice()}"
-                               data-limit="{$plan->getSubmissionLimit()}">
+                               data-limit="{$plan->getSubmissionLimit()}"
+                               data-paddle="{$plan->getPaddlePriceId()}">
                                 {translate key="common.edit"}
                             </a>
                             |

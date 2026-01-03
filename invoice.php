@@ -1,8 +1,13 @@
 <?php
 /**
- * PDF Invoice Generator - Editorial Management System
- * Clean one-page design with EMS branding
+ * Professional PDF Invoice Generator - Editorial Management System
+ * Uses Dompdf for direct PDF delivery
  */
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 $paymentId = isset($_GET['payment_id']) ? (int)$_GET['payment_id'] : 0;
 $journalId = isset($_GET['journal_id']) ? (int)$_GET['journal_id'] : 0;
@@ -27,7 +32,8 @@ $dbPass = $config['database']['password'] ?? '';
 $driverMap = [
     'postgres9' => 'pgsql',
     'postgres' => 'pgsql',
-    'mysql' => 'mysql'
+    'mysql' => 'mysql',
+    'mysqli' => 'mysql'
 ];
 $dbDriver = $driverMap[$dbDriverRaw] ?? $dbDriverRaw;
 
@@ -63,460 +69,332 @@ $journalPlan = $stmt->fetch(PDO::FETCH_ASSOC);
 // Format data
 $invoiceId = 'INV-' . str_pad($payment['payment_id'], 6, '0', STR_PAD_LEFT);
 $paymentDate = date('F d, Y', strtotime($payment['payment_date']));
-$amount = number_format($payment['amount'] / 100, 2);
+$totalAmountCents = (int)$payment['amount'];
+$taxAmountCents = (int)($payment['tax_amount'] ?? 0);
+$subtotalCents = $totalAmountCents - $taxAmountCents;
+
+$amount = number_format($totalAmountCents / 100, 2);
+$taxAmount = number_format($taxAmountCents / 100, 2);
+$subtotal = number_format($subtotalCents / 100, 2);
+
+// Calculate tax percentage for display
+$taxPercent = $subtotalCents > 0 ? round(($taxAmountCents / $subtotalCents) * 100) : 0;
+
 $planName = ucfirst($payment['plan_type']);
 $status = $payment['status'] === 'succeeded' ? 'PAID' : strtoupper($payment['status']);
 $billingCycle = ucfirst($payment['billing_cycle'] ?? 'Yearly');
 $planValidUntil = $journalPlan ? date('F d, Y', strtotime($journalPlan['plan_end_date'])) : 'N/A';
 $submissionLimit = $journalPlan ? $journalPlan['submissions_limit'] : 'N/A';
-$transactionId = $payment['stripe_payment_intent_id'] ?? 'N/A';
+$transactionId = $payment['stripe_payment_intent_id'] ?? $payment['paddle_transaction_id'] ?? 'N/A';
+$paymentMethod = 'Stripe';
+if (strpos($transactionId, 'txn_') === 0 || strpos($transactionId, 'trn_') === 0) {
+    $paymentMethod = 'Paddle';
+}
 
-// Get logo as base64
+// Get logo as base64 - Filtered to white for professional look on green background
 $logoPath = __DIR__ . '/images/ems_brand_logo_full.png';
 $logoBase64 = '';
 if (file_exists($logoPath)) {
-    $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+    try {
+        $img = imagecreatefrompng($logoPath);
+        if ($img) {
+            imagealphablending($img, false);
+            imagesavealpha($img, true);
+            // Apply brightness filter to make it white (255)
+            imagefilter($img, IMG_FILTER_BRIGHTNESS, 255);
+            
+            ob_start();
+            imagepng($img);
+            $imgData = ob_get_clean();
+            $logoBase64 = 'data:image/png;base64,' . base64_encode($imgData);
+            imagedestroy($img);
+        }
+    } catch (Exception $e) {
+        // Fallback to original if GD fails
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+    }
 }
 
-header('Content-Type: text/html; charset=utf-8');
-header('Content-Disposition: attachment; filename="' . $invoiceId . '.html"');
+ob_start();
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Invoice <?php echo $invoiceId; ?></title>
     <style>
-        @page { size: A4; margin: 0; }
-        @media print {
-            body { margin: 0; padding: 0; }
-            .no-print { display: none !important; }
-            .invoice-wrapper { box-shadow: none !important; margin: 0 !important; border-radius: 0 !important; }
-        }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        @page { margin: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f2f5;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #fff;
             color: #1e293b;
             font-size: 13px;
-            line-height: 1.5;
+            line-height: 1.4;
         }
-        
-        .invoice-wrapper {
-            max-width: 700px;
-            margin: 20px auto;
-            background: #fff;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        
-        /* Header */
         .header {
-            background: linear-gradient(135deg, #057F5F 0%, #0ABF96 100%);
+            background: #057F5F;
             color: #fff;
-            padding: 30px 35px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 30px 40px;
         }
-        
-        .logo-area {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        
-        .logo-area img {
-            height: 100px;
-            width: auto;
+        .header-table td {
+            vertical-align: middle;
         }
-        
-        .logo-text {
-            display: flex;
-            flex-direction: column;
+        .logo-img {
+            height: 90px;
         }
-        
-        .logo-text .brand-name {
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-        
-        .logo-text .brand-tagline {
-            font-size: 10px;
-            opacity: 0.85;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-        
-        .header-right {
-            text-align: right;
-        }
-        
         .invoice-title {
-            font-size: 28px;
-            font-weight: 700;
+            font-size: 32px;
+            font-weight: bold;
+            text-align: right;
             letter-spacing: 2px;
         }
-        
-        .invoice-number {
+        .invoice-info {
+            text-align: right;
             font-size: 14px;
-            opacity: 0.9;
-            margin: 5px 0 10px;
+            margin-top: 5px;
         }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 6px 16px;
+        .status-paid {
             background: #22c55e;
-            border-radius: 20px;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 12px;
             font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
         }
-        
-        .status-badge.pending { background: #f59e0b; }
-        .status-badge.failed { background: #ef4444; }
-        
-        /* Content */
         .content {
-            padding: 30px 35px;
+            padding: 40px;
         }
-        
-        /* Details Row */
-        .details-row {
-            display: flex;
-            gap: 30px;
-            margin-bottom: 25px;
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
         }
-        
+        .details-table td {
+            width: 50%;
+            vertical-align: top;
+            padding: 0 15px;
+        }
+        .details-table td:first-child { padding-left: 0; }
+        .details-table td:last-child { padding-right: 0; }
+
         .details-box {
-            flex: 1;
+            background: #d8f3dc;
             padding: 20px;
-            background: #f8fafc;
             border-radius: 8px;
-            border-left: 3px solid #0ABF96;
+            border-left: 4px solid #0ABF96;
         }
-        
         .details-box h4 {
-            font-size: 10px;
+            font-size: 11px;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
             margin-bottom: 12px;
+            letter-spacing: 1px;
         }
-        
         .details-box .primary {
             font-size: 18px;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 8px;
+            font-weight: bold;
+            margin-bottom: 10px;
         }
-        
-        .details-box .detail-line {
-            display: flex;
-            justify-content: space-between;
+        .detail-line {
             font-size: 12px;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
+            color: #475569;
         }
-        
-        .details-box .detail-line .label { color: #64748b; }
-        .details-box .detail-line .value { font-weight: 600; color: #1e293b; }
+        .detail-line b { color: #1e293b; }
         
         .transaction-id {
             font-family: monospace;
-            font-size: 11px;
+            font-size: 10px;
             background: #e2e8f0;
-            padding: 3px 8px;
+            padding: 4px 8px;
             border-radius: 4px;
-            word-break: break-all;
+            margin-top: 8px;
+            display: block;
         }
-        
-        /* Table */
+
         .invoice-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
-        
-        .invoice-table thead {
+        .invoice-table th {
             background: #057F5F;
             color: #fff;
-        }
-        
-        .invoice-table th {
             padding: 12px 15px;
             text-align: left;
             font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
         }
-        
-        .invoice-table th:last-child { text-align: right; }
-        
         .invoice-table td {
             padding: 15px;
             border-bottom: 1px solid #e2e8f0;
         }
+        .desc-main { font-weight: bold; font-size: 14px; }
+        .desc-sub { color: #64748b; font-size: 12px; }
         
-        .invoice-table td:last-child { text-align: right; }
-        
-        .desc-main { font-weight: 600; font-size: 14px; }
-        .desc-sub { color: #64748b; font-size: 12px; margin-top: 2px; }
-        
-        .period-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            background: #d1fae5;
-            color: #057F5F;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
-        .amount { font-weight: 700; font-size: 15px; color: #1e293b; }
-        
-        /* Totals */
-        .totals-section {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 20px;
-        }
-        
-        .totals-box {
+        .totals-table {
+            float: right;
             width: 250px;
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 15px 20px;
+            border-collapse: collapse;
         }
-        
-        .totals-box .row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            font-size: 13px;
+        .totals-table td {
+            padding: 8px 10px;
+            font-size: 14px;
         }
-        
-        .totals-box .row.subtotal { border-bottom: 1px solid #e2e8f0; }
-        
-        .totals-box .row.total {
-            font-size: 16px;
-            font-weight: 700;
-            color: #0ABF96;
-            padding-top: 10px;
-            margin-top: 5px;
+        .row-total {
             border-top: 2px solid #0ABF96;
+            color: #0ABF96;
+            font-weight: bold;
+            font-size: 18px !important;
         }
+
         
-        /* Plan Active Box */
         .plan-box {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            clear: both;
+            margin-top: 25px;
+            background: #ecfdf5;
             border: 1px solid #0ABF96;
             border-radius: 8px;
             padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
         }
-        
-        .plan-box .icon {
-            width: 36px;
-            height: 36px;
-            background: #0ABF96;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 18px;
-        }
-        
-        .plan-box .text h5 {
-            font-size: 14px;
+        .plan-box h5 {
             color: #065f46;
-            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+            font-weight: bold;
         }
-        
-        .plan-box .text p {
-            font-size: 12px;
+        .plan-box p {
             color: #047857;
+            font-size: 12px;
         }
-        
-        /* Footer */
+
         .footer {
+            margin-top: 10px;
+            width: 100%;
             background: #f8fafc;
-            padding: 20px 35px;
+            padding: 25px 40px;
             text-align: center;
             border-top: 1px solid #e2e8f0;
         }
-        
-        .footer .brand {
-            font-size: 14px;
-            font-weight: 700;
-            color: #057F5F;
-        }
-        
-        .footer .tagline {
-            font-size: 11px;
-            color: #64748b;
-            margin: 3px 0 8px;
-        }
-        
-        .footer .contact {
-            font-size: 11px;
-            color: #94a3b8;
-        }
-        
-        .footer a { color: #0ABF96; text-decoration: none; }
-        
-        /* Print Button */
-        .print-btn-wrapper {
-            text-align: center;
-            padding: 15px;
-        }
-        
-        .print-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 25px;
-            background: #0ABF96;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        
-        .print-btn:hover { background: #057F5F; }
+        .footer .brand { font-weight: bold; color: #057F5F; }
+        .footer .contact { font-size: 11px; color: #64748b; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="invoice-wrapper">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo-area">
-                <?php if ($logoBase64): ?>
-                    <img src="<?php echo $logoBase64; ?>" alt="EMS">
-                <?php endif; ?>
-            </div>
-            <div class="header-right">
-                <div class="invoice-title">INVOICE</div>
-                <div class="invoice-number"># <?php echo $invoiceId; ?></div>
-                <span class="status-badge <?php echo strtolower($status); ?>"><?php echo $status; ?></span>
-            </div>
-        </div>
-        
-        <!-- Content -->
-        <div class="content">
-            <!-- Details -->
-            <div class="details-row">
-                <div class="details-box">
-                    <h4>Billed To</h4>
-                    <div class="primary"><?php echo htmlspecialchars($journalName); ?></div>
-                    <div class="detail-line">
-                        <span class="label">Journal ID</span>
-                        <span class="value">#<?php echo $journalId; ?></span>
+    <div class="header">
+        <table class="header-table">
+            <tr>
+                <td>
+                    <?php if ($logoBase64): ?>
+                        <img src="<?php echo $logoBase64; ?>" class="logo-img">
+                    <?php endif; ?>
+                </td>
+                <td>
+                    <div class="invoice-title">INVOICE</div>
+                    <div class="invoice-info"># <?php echo $invoiceId; ?></div>
+                    <div style="text-align: right;">
+                        <span class="status-paid"><?php echo $status; ?></span>
                     </div>
-                    <div class="detail-line">
-                        <span class="label">Plan Type</span>
-                        <span class="value"><?php echo $planName; ?></span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="content">
+        <table class="details-table">
+            <tr>
+                <td>
+                    <div class="details-box">
+                        <h4>Billed To</h4>
+                        <div class="primary"><?php echo htmlspecialchars($journalName); ?></div>
+                        <div class="detail-line">Journal ID: <b>#<?php echo $journalId; ?></b></div>
+                        <div class="detail-line">Plan Type: <b><?php echo $planName; ?></b></div>
                     </div>
-                </div>
-                
-                <div class="details-box">
-                    <h4>Payment Information</h4>
-                    <div class="detail-line">
-                        <span class="label">Invoice Date</span>
-                        <span class="value"><?php echo $paymentDate; ?></span>
+                </td>
+                <td>
+                    <div class="details-box">
+                        <h4>Payment Information</h4>
+                        <div class="detail-line">Invoice Date: <b><?php echo $paymentDate; ?></b></div>
+                        <div class="detail-line">Payment Method: <b><?php echo $paymentMethod; ?></b></div>
+                        <div class="detail-line" style="margin-top: 10px;">Transaction ID:</div>
+                        <div class="transaction-id"><?php echo htmlspecialchars($transactionId); ?></div>
                     </div>
-                    <div class="detail-line">
-                        <span class="label">Payment Method</span>
-                        <span class="value">Stripe</span>
-                    </div>
-                    <div class="detail-line" style="margin-top: 8px;">
-                        <span class="label">Transaction ID</span>
-                    </div>
-                    <div class="transaction-id"><?php echo htmlspecialchars($transactionId); ?></div>
-                </div>
-            </div>
-            
-            <!-- Table -->
-            <table class="invoice-table">
-                <thead>
-                    <tr>
-                        <th style="width: 45%;">Description</th>
-                        <th style="width: 20%;">Period</th>
-                        <th style="width: 15%;">Qty</th>
-                        <th style="width: 20%;">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <div class="desc-main"><?php echo $planName; ?> Plan Subscription</div>
-                            <div class="desc-sub">Up to <?php echo $submissionLimit; ?> submissions per year</div>
-                        </td>
-                        <td><span class="period-badge"><?php echo $billingCycle; ?></span></td>
-                        <td>1</td>
-                        <td class="amount">$<?php echo $amount; ?> <?php echo $payment['currency']; ?></td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <!-- Totals -->
-            <div class="totals-section">
-                <div class="totals-box">
-                    <div class="row subtotal">
-                        <span>Subtotal</span>
-                        <span>$<?php echo $amount; ?></span>
-                    </div>
-                    <div class="row">
-                        <span>Tax (0%)</span>
-                        <span>$0.00</span>
-                    </div>
-                    <div class="row total">
-                        <span>Total</span>
-                        <span>$<?php echo $amount; ?> <?php echo $payment['currency']; ?></span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Plan Active -->
-            <div class="plan-box">
-                <div class="icon">✓</div>
-                <div class="text">
-                    <h5>Your <?php echo $planName; ?> Plan is Active</h5>
-                    <p>Valid until <?php echo $planValidUntil; ?> • <?php echo $submissionLimit; ?> submissions included</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="footer">
-            <div class="brand">Editorial Management System</div>
-            <div class="tagline">Empowering Academic Publishing Excellence</div>
-            <div class="contact">
-                Thank you for your subscription! For support, contact <a href="mailto:support@ems.pub">support@ems.pub</a> | <a href="https://www.ems.pub">www.ems.pub</a>
-            </div>
+                </td>
+            </tr>
+        </table>
+
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Description</th>
+                    <th style="width: 20%;">Period</th>
+                    <th style="width: 10%;">Qty</th>
+                    <th style="width: 20%; text-align: right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <div class="desc-main"><?php echo $planName; ?> Plan</div>
+                        <div class="desc-sub">Up to <?php echo $submissionLimit; ?> submissions/year</div>
+                    </td>
+                    <td><?php echo $billingCycle; ?></td>
+                    <td>1</td>
+                    <td style="text-align: right; font-weight: bold;">$<?php echo $amount; ?></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="totals-table">
+            <tr>
+                <td style="color: #64748b;">Subtotal</td>
+                <td style="text-align: right;">$<?php echo $subtotal; ?></td>
+            </tr>
+            <tr>
+                <td style="color: #64748b;">Tax (<?php echo $taxPercent; ?>%)</td>
+                <td style="text-align: right;">$<?php echo $taxAmount; ?></td>
+            </tr>
+            <tr>
+                <td class="row-total">Total</td>
+                <td class="row-total" style="text-align: right;">$<?php echo $amount; ?> <?php echo $payment['currency']; ?></td>
+            </tr>
+        </table>
+
+        <div class="plan-box">
+            <h5>Your <?php echo ($planName === 'Juniorscholar' ? 'Junior Scholar' : $planName); ?> Plan is Active</h5>
+            <p style="margin-top: 5px;">Valid until <?php echo $planValidUntil; ?> • <?php echo $submissionLimit; ?> submissions included</p>
         </div>
     </div>
-    
-    <!-- Print Button -->
-    <div class="print-btn-wrapper no-print">
-        <button class="print-btn" onclick="window.print()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                <rect x="6" y="14" width="12" height="8"></rect>
-            </svg>
-            Print / Save as PDF
-        </button>
+
+    <div class="footer">
+        <div class="brand">Editorial Management System (ems.pub)</div>
+        <div class="contact">
+            For support, contact support@ems.pub | www.ems.pub<br>
+            Thank you for your business!
+        </div>
     </div>
 </body>
 </html>
+<?php
+$html = ob_get_clean();
+
+// Dompdf Setup
+$options = new Options();
+$options->set('isHtml5ParserEnabled', true);
+$options->set('isRemoteEnabled', true);
+$options->set('defaultFont', 'Helvetica');
+
+$dompdf = new Dompdf($options);
+$dompdf->loadHtml($html);
+$dompdf->setPaper('A4', 'portrait');
+$dompdf->render();
+
+// Stream the PDF
+$dompdf->stream($invoiceId . ".pdf", array("Attachment" => 1));

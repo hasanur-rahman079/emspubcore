@@ -151,60 +151,129 @@
             {/if}
         </div>
 
-        <!-- 4. Payment History -->
-        <h3 style="margin-top: 30px;">{translate key="plugins.generic.emspubcore.subscriptionHistory"}</h3>
-        <div class="pkp_list_panel">
-            <table class="pkpTable">
-                <thead>
-                    <tr>
-                        <th style="width: 20%;">INVOICE ID</th>
-                        <th style="width: 20%;">DATE</th>
-                        <th style="width: 15%;">AMOUNT</th>
-                        <th style="width: 15%;">STATUS</th>
-                        <th style="width: 15%;">PLAN</th>
-                        <th style="width: 15%;">DOWNLOAD</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {foreach from=$emspubcorePaymentHistory item=payment name=paymentLoop}
-                        <tr>
-                            <td>
-                                {if $payment->stripe_invoice_id}
-                                    {$payment->stripe_invoice_id|truncate:15:"..."}
-                                {else}
-                                    INV-{$payment->payment_id|string_format:"%06d"}
-                                {/if}
-                            </td>
-                            <td>
-                                {* Format: extract first 10 chars for YYYY-MM-DD *}
-                                {$payment->payment_date|substr:0:10}
-                            </td>
-                            <td>${$payment->amount / 100|string_format:"%.0f"}</td>
-                            <td>
-                                <span class="emspubcore-history-status {if $payment->status == 'succeeded'}emspubcore-status-completed{else}emspubcore-status-failed{/if}">
-                                    {if $payment->status == 'succeeded'}COMPLETED{else}{$payment->status|upper}{/if}
-                                </span>
-                            </td>
-                            <td>{$payment->plan_type|ucfirst}</td>
-                            <td>
-                                <a href="{$baseUrl}/plugins/generic/emspubcore/invoice.php?payment_id={$payment->payment_id}&journal_id={$emspubcoreJournalId}" 
-                                   class="emspubcore-invoice-link" 
-                                   title="Download Invoice"
-                                   target="_blank"
-                                   style="display: inline-flex; align-items: center; gap: 4px; color: #006798; text-decoration: none; font-size: 13px;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                        <polyline points="7 10 12 15 17 10"></polyline>
-                                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                                    </svg>
-                                </a>
-                            </td>
+        <!-- 4. Payment History - Professional Design with Inline Styles -->
+        <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; color: #1e293b; margin: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ABF96" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    Payment History
+                </h3>
+                <span style="background: #f1f5f9; color: #64748b; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;">
+                    {$emspubcorePaymentHistory|@count} transactions
+                </span>
+            </div>
+            
+            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <table style="width: 100%; border-collapse: collapse;" id="paymentHistoryTable">
+                    <thead>
+                        <tr style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);">
+                            <th style="padding: 14px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Invoice</th>
+                            <th style="padding: 14px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Date</th>
+                            <th style="padding: 14px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Amount</th>
+                            <th style="padding: 14px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Status</th>
+                            <th style="padding: 14px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Plan</th>
+                            <th style="padding: 14px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;">Action</th>
                         </tr>
-                    {foreachelse}
-                        <tr><td colspan="6" style="text-align: center; color: #777; padding: 20px;">No payment history found.</td></tr>
-                    {/foreach}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody id="paymentHistoryBody">
+                        {foreach from=$emspubcorePaymentHistory item=payment name=paymentLoop}
+                            <tr class="payment-row" data-index="{$smarty.foreach.paymentLoop.index}" style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 16px; vertical-align: middle;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="background: linear-gradient(135deg, #0ABF96 0%, #057F5F 100%); color: #fff; font-size: 9px; font-weight: 700; padding: 3px 6px; border-radius: 4px; letter-spacing: 0.5px;">INV</span>
+                                        <span style="font-family: monospace; font-size: 13px; color: #1e293b; font-weight: 500;">{$payment->payment_id|string_format:"%06d"}</span>
+                                    </div>
+                                </td>
+                                <td style="padding: 16px; vertical-align: middle;">
+                                    <span style="font-size: 13px; color: #475569;">{$payment->payment_date|substr:0:10}</span>
+                                </td>
+                                <td style="padding: 16px; vertical-align: middle;">
+                                    <span style="font-size: 14px; font-weight: 600; color: #1e293b;">${$payment->amount / 100|string_format:"%.2f"}</span>
+                                    <span style="font-size: 11px; color: #94a3b8; margin-left: 4px;">USD</span>
+                                </td>
+                                <td style="padding: 16px; vertical-align: middle;">
+                                    {if $payment->status == 'succeeded'}
+                                        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #047857;">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                            Completed
+                                        </span>
+                                    {else}
+                                        <span style="display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #fef3c7; color: #d97706;">{$payment->status|ucfirst}</span>
+                                    {/if}
+                                </td>
+                                <td style="padding: 16px; vertical-align: middle;">
+                                    {assign var=planColor value="#f1f5f9"}
+                                    {assign var=planTextColor value="#64748b"}
+                                    {if $payment->plan_type|lower == 'basic'}
+                                        {assign var=planColor value="#dbeafe"}
+                                        {assign var=planTextColor value="#1d4ed8"}
+                                    {elseif $payment->plan_type|lower == 'premium'}
+                                        {assign var=planColor value="#fae8ff"}
+                                        {assign var=planTextColor value="#a21caf"}
+                                    {elseif $payment->plan_type|lower == 'enterprise'}
+                                        {assign var=planColor value="#fef3c7"}
+                                        {assign var=planTextColor value="#b45309"}
+                                    {elseif $payment->plan_type|lower == 'bsmiab'}
+                                        {assign var=planColor value="#e0e7ff"}
+                                        {assign var=planTextColor value="#4338ca"}
+                                    {/if}
+                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; background: {$planColor}; color: {$planTextColor};">{$payment->plan_type|ucfirst}</span>
+                                </td>
+                                <td style="padding: 16px; vertical-align: middle; text-align: center;">
+                                    <a href="{$baseUrl}/plugins/generic/emspubcore/invoice.php?payment_id={$payment->payment_id}&journal_id={$emspubcoreJournalId}" 
+                                       title="Download Invoice"
+                                       target="_blank"
+                                       style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: #f1f5f9; color: #64748b; text-decoration: none;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        {foreachelse}
+                            <tr>
+                                <td colspan="6" style="padding: 60px 20px; text-align: center;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
+                                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                                    </svg>
+                                    <p style="margin: 15px 0 5px; font-size: 15px; font-weight: 500; color: #64748b;">No payment history found</p>
+                                    <span style="font-size: 13px; color: #94a3b8;">Your transactions will appear here after your first payment</span>
+                                </td>
+                            </tr>
+                        {/foreach}
+                    </tbody>
+                </table>
+                
+                <!-- Pagination -->
+                <div id="paginationControls" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                    <div style="font-size: 13px; color: #64748b;">
+                        <span id="paginationInfo">Showing 1-5 of {$emspubcorePaymentHistory|@count}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button id="prevPage" disabled style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-weight: 500; color: #475569; cursor: pointer;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Previous
+                        </button>
+                        <div id="pageNumbers" style="display: flex; gap: 4px;"></div>
+                        <button id="nextPage" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-weight: 500; color: #475569; cursor: pointer;">
+                            Next
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -219,6 +288,7 @@
             var currentUsage = parseInt($('#currentUsage').val()) || 0;
             var currentLimit = parseInt($('#currentLimit').val()) || 0;
             var isLimitReached = (currentLimit > 0 && currentUsage >= currentLimit);
+            var checkoutUrl = "{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="checkout"}";
             
             function updateButtonState() {
                 var selectedPlan = $('#selectedPlanInput').val();
@@ -300,7 +370,7 @@
                 
                 if (confirm('You are about to upgrade to the ' + selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) + ' plan.\n\nYou will be redirected to complete the payment. Continue?')) {
                     var billing = 'yearly';
-                    var url = baseUrl + '/plugins/generic/emspubcore/checkout.php?plan=' + selectedPlan + '&billing=' + billing + '&journalId=' + journalId;
+                    var url = checkoutUrl + (checkoutUrl.indexOf('?') === -1 ? '?' : '&') + 'plan=' + selectedPlan + '&billing=' + billing + '&journalId=' + journalId;
                     window.location.href = url;
                 }
             });
@@ -311,7 +381,7 @@
                 
                 if (confirm('You are about to renew your ' + currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1) + ' plan.\n\nThis will:\n• Charge your payment method\n• Reset your submission counter to 0\n• Extend your plan for another year\n\nContinue?')) {
                     var billing = 'yearly';
-                    var url = baseUrl + '/plugins/generic/emspubcore/checkout.php?plan=' + currentPlan + '&billing=' + billing + '&journalId=' + journalId + '&renew=1';
+                    var url = checkoutUrl + (checkoutUrl.indexOf('?') === -1 ? '?' : '&') + 'plan=' + currentPlan + '&billing=' + billing + '&journalId=' + journalId + '&renew=1';
                     window.location.href = url;
                 }
             });
@@ -323,6 +393,64 @@
             
             // Initialize button state
             updateButtonState();
+            
+            // ============ PAGINATION ============
+            var itemsPerPage = 5;
+            var currentPage = 1;
+            var $rows = $('.payment-row');
+            var totalItems = $rows.length;
+            var totalPages = Math.ceil(totalItems / itemsPerPage);
+            
+            function showPage(page) {
+                currentPage = page;
+                var start = (page - 1) * itemsPerPage;
+                var end = start + itemsPerPage;
+                
+                $rows.hide().slice(start, end).show();
+                
+                // Update info text
+                var showingEnd = Math.min(end, totalItems);
+                $('#paginationInfo').text('Showing ' + (start + 1) + '-' + showingEnd + ' of ' + totalItems);
+                
+                // Update buttons
+                $('#prevPage').prop('disabled', page === 1);
+                $('#nextPage').prop('disabled', page === totalPages);
+                
+                // Update page numbers
+                renderPageNumbers();
+            }
+            
+            function renderPageNumbers() {
+                var $container = $('#pageNumbers');
+                $container.empty();
+                
+                for (var i = 1; i <= totalPages; i++) {
+                    var isActive = (i === currentPage);
+                    var btnStyle = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid ' + (isActive ? '#0ABF96' : '#e2e8f0') + '; border-radius: 6px; background: ' + (isActive ? '#0ABF96' : '#fff') + '; font-size: 13px; font-weight: 500; color: ' + (isActive ? '#fff' : '#475569') + '; cursor: pointer;';
+                    var $btn = $('<button style="' + btnStyle + '">' + i + '</button>');
+                    $btn.data('page', i);
+                    $container.append($btn);
+                }
+            }
+            
+            $('#prevPage').click(function() {
+                if (currentPage > 1) showPage(currentPage - 1);
+            });
+            
+            $('#nextPage').click(function() {
+                if (currentPage < totalPages) showPage(currentPage + 1);
+            });
+            
+            $(document).on('click', '.page-num', function() {
+                showPage($(this).data('page'));
+            });
+            
+            // Hide pagination if not enough items
+            if (totalItems <= itemsPerPage) {
+                $('#paginationControls').hide();
+            } else {
+                showPage(1);
+            }
         });
     </script>
 
@@ -342,5 +470,285 @@
         }
         .emspubcore-plan-card { position: relative; }
         .emspubcore-plan-card.current { border-color: #28a745; }
+        
+        /* Payment History Section */
+        .emspubcore-history-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .emspubcore-history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .emspubcore-history-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+        
+        .emspubcore-history-header h3 svg {
+            color: #0ABF96;
+        }
+        
+        .emspubcore-history-count {
+            background: #f1f5f9;
+            color: #64748b;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .emspubcore-history-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .emspubcore-history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .emspubcore-history-table thead {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+        
+        .emspubcore-history-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .emspubcore-history-table th.text-center,
+        .emspubcore-history-table td.text-center {
+            text-align: center;
+        }
+        
+        .emspubcore-history-table td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+        
+        .emspubcore-history-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        
+        .emspubcore-history-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .invoice-id {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .invoice-badge {
+            background: linear-gradient(135deg, #0ABF96 0%, #057F5F 100%);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+        
+        .invoice-number {
+            font-family: 'SF Mono', 'Monaco', monospace;
+            font-size: 13px;
+            color: #1e293b;
+            font-weight: 500;
+        }
+        
+        .date-main {
+            font-size: 13px;
+            color: #475569;
+        }
+        
+        .amount-cell {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        
+        .amount-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .amount-currency {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .status-completed {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #047857;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .plan-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .plan-free { background: #f1f5f9; color: #64748b; }
+        .plan-basic { background: #dbeafe; color: #1d4ed8; }
+        .plan-premium { background: #fae8ff; color: #a21caf; }
+        .plan-enterprise { background: #fef3c7; color: #b45309; }
+        .plan-bsmiab { background: #e0e7ff; color: #4338ca; }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #f1f5f9;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+        
+        .download-btn:hover {
+            background: #0ABF96;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        
+        .empty-state td {
+            padding: 60px 20px !important;
+        }
+        
+        .empty-message {
+            text-align: center;
+        }
+        
+        .empty-message p {
+            margin: 15px 0 5px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #64748b;
+        }
+        
+        .empty-message span {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        
+        /* Pagination */
+        .emspubcore-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .pagination-info {
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        .pagination-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .page-numbers {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .page-num {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #fff;
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .page-num:hover {
+            background: #f1f5f9;
+        }
+        
+        .page-num.active {
+            background: #0ABF96;
+            color: #fff;
+            border-color: #0ABF96;
+        }
     </style>
 </tab>

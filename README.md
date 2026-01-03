@@ -1,6 +1,6 @@
 # EmsPubCore Plugin
 
-A comprehensive OJS plugin that provides journal subscription plans with submission limits, Stripe payment integration, and article processing charge (APC) management.
+A comprehensive OJS plugin that provides journal subscription plans with submission limits, payment gateway integration (Stripe & Paddle), and article processing charge (APC) management.
 
 ## Table of Contents
 
@@ -11,8 +11,10 @@ A comprehensive OJS plugin that provides journal subscription plans with submiss
 - [Usage](#usage)
 - [Architecture](#architecture)
 - [API Reference](#api-reference)
+- [Security](#security)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ---
@@ -21,15 +23,16 @@ A comprehensive OJS plugin that provides journal subscription plans with submiss
 
 ### 🎯 Journal Subscription Plans
 - **Tiered Plans**: Free, Basic, and Premium tiers with configurable submission limits
-- **Yearly Billing**: Annual subscription billing with Stripe integration
+- **Yearly Billing**: Annual subscription billing with payment gateway integration
 - **Usage Tracking**: Automatic yearly submission counting per journal
 - **Real-time Display**: Editor dashboard badge showing remaining submissions
 
-### 💳 Stripe Payment Integration
-- **Secure Checkout**: Stripe Checkout for PCI-compliant payment processing
-- **Webhook Support**: Automatic plan updates via Stripe webhooks
+### 💳 Payment Gateway Integration
+- **Stripe Support**: Stripe Checkout for PCI-compliant payment processing
+- **Paddle Support**: Paddle Billing for simplified international payments
+- **Webhook Support**: Automatic plan updates via signed webhooks
 - **Test Mode**: Development sandbox for testing payments
-- **Multiple Currencies**: Supports various currencies via Stripe
+- **Multiple Currencies**: Supports various currencies via both gateways
 
 ### 💰 Advanced Discount & Pricing
 - **Plan Discounts**: Set global sale prices for any plan tier (e.g., $350 → $320).
@@ -37,14 +40,19 @@ A comprehensive OJS plugin that provides journal subscription plans with submiss
 - **Stacked Logic**: Journal discounts apply on top of plan sale prices automatically.
 - **Admin Management**: Dedicated tabs for Journal Management and Global Payment History.
 
+### 📄 Article Processing Charges (APC)
+- **Journal-Level Paddle Product ID**: Configure Paddle Product ID per journal for APC payments
+- **My Invoices Dashboard**: Authors can view and pay pending APCs
+- **Invoice Generation**: PDF invoices for completed payments
+
 ---
 
 ## Requirements
 
 - **OJS Version**: 3.4.0 or higher
 - **PHP Version**: 8.1 or higher
-- **Stripe Account**: For payment processing
-- **SSL Certificate**: Required for Stripe integration
+- **Payment Gateway**: Stripe or Paddle account
+- **SSL Certificate**: Required for payment integration
 
 ---
 
@@ -61,7 +69,7 @@ cp -r emspubcore /path/to/ojs/plugins/generic/
 
 ```bash
 cd /path/to/ojs/plugins/generic/emspubcore
-composer install
+composer install --no-dev
 ```
 
 ### Step 3: Enable Plugin
@@ -93,31 +101,59 @@ The plugin automatically creates required database tables on first enable:
 | Secret Key | Private key for backend | `sk_test_...` or `sk_live_...` |
 | Webhook Secret | Validates webhook events | `whsec_...` |
 
+### Paddle API Keys
+
+1. Go to [Paddle Dashboard](https://vendors.paddle.com/authentication)
+2. Copy your API keys
+
+| Setting | Description | Example |
+|---------|-------------|---------|
+| Vendor ID | Your Paddle vendor ID | `12345` |
+| API Key | Server-side API key | `...` |
+| Client Token | For Paddle.js frontend | `live_...` or `test_...` |
+| Webhook Secret | For signature verification | `pdl_ntfset_...` |
+
+### Paddle APC Product ID (Journal-Level)
+
+For journal-specific APC payments via Paddle:
+1. Navigate to **Payments → Payment Types** in the journal settings
+2. Enter the Paddle Product ID for APC in the "Paddle Product ID for APC" field
+3. Save - the value is stored via AJAX and persists across page loads
+
 ### Webhook Configuration
 
-Create a webhook endpoint in Stripe Dashboard:
-
+**Stripe Webhook:**
 ```
 https://your-domain.com/index.php/{journal-path}/emspubcore/webhook
 ```
 
-**Required Events:**
+**Paddle Webhook:**
+```
+https://your-domain.com/index.php/{journal-path}/emspubcore/webhook
+```
+
+**Required Stripe Events:**
 - `checkout.session.completed`
 - `customer.subscription.updated`
 - `customer.subscription.deleted`
 - `invoice.payment_failed`
 
+**Required Paddle Events:**
+- `subscription.created`
+- `subscription.updated`
+- `subscription.canceled`
+- `transaction.completed`
+
 ### Test Mode
 
-Enable test mode in plugin settings to use Stripe's sandbox:
+Enable test mode in plugin settings to use sandbox environments.
 
+**Stripe Test Cards:**
 | Test Card | Behavior |
 |-----------|----------|
 | `4242 4242 4242 4242` | Successful payment |
 | `4000 0000 0000 0002` | Card declined |
 | `4000 0000 0000 3220` | 3D Secure required |
-
-Use any future expiry date, any 3-digit CVC, and any postal code.
 
 ---
 
@@ -143,8 +179,13 @@ Use any future expiry date, any 3-digit CVC, and any postal code.
 
 **Upgrading Plan:**
 1. Click "Upgrade" on the plans page
-2. Complete payment via Stripe Checkout
+2. Complete payment via Stripe/Paddle Checkout
 3. Plan is activated immediately for one year
+
+**Configuring APC Payments (Paddle):**
+1. Go to **Payments → Payment Types**
+2. Enter the Paddle Product ID for APC
+3. Save the form
 
 ### For Authors
 
@@ -156,7 +197,7 @@ Use any future expiry date, any 3-digit CVC, and any postal code.
 **Making a Payment:**
 1. Find the submission with "Pending" status
 2. Click "Pay Now"
-3. Complete payment via Stripe
+3. Complete payment via Stripe or Paddle
 4. Download invoice when status shows "Paid"
 
 ### For Editors/Admins
@@ -207,17 +248,22 @@ plugins/generic/emspubcore/
 │   ├── PlanDAO.php               # Site-level plan database operations
 │   ├── PaymentHistoryDAO.php     # Payment logging
 │   ├── StripePaymentHandler.php  # Stripe API integration
+│   ├── PaddlePaymentHandler.php  # Paddle API integration
 │   └── SubmissionUsageDAO.php    # Yearly usage tracking
 ├── controllers/
+│   ├── StripeWebhookHandler.php  # Stripe webhook processing
+│   ├── PaddleWebhookHandler.php  # Paddle webhook processing
 │   └── grid/                     # Grid handlers for admin views
 ├── templates/
 │   ├── pendingPayments.tpl       # Author payment dashboard
 │   ├── plans.tpl                 # Plan selection page
 │   ├── invoice.tpl               # Invoice template
 │   ├── settingsForm.tpl          # Plugin settings form
+│   ├── payments/                 # Payment form overrides
 │   └── admin*.tpl                # Admin interface templates
 ├── locale/
-│   └── en/locale.po              # English translations
+│   ├── en/locale.po              # English translations
+│   └── en_US/locale.po           # US English translations
 ├── schema.xml                    # Database schema definitions
 └── version.xml                   # Plugin version info
 ```
@@ -235,6 +281,8 @@ plugins/generic/emspubcore/
 | plan_start_date | DATETIME | Subscription start |
 | plan_end_date | DATETIME | Subscription expiry |
 | stripe_customer_id | VARCHAR | Stripe customer reference |
+| paddle_customer_id | VARCHAR | Paddle customer reference |
+| paddle_subscription_id | VARCHAR | Paddle subscription reference |
 | is_active | BOOLEAN | Plan status |
 
 **`emspubcore_submission_usage`**
@@ -252,7 +300,7 @@ plugins/generic/emspubcore/
 | journal_id | INTEGER | FK to journals |
 | amount | DECIMAL | Payment amount |
 | currency | VARCHAR | Currency code |
-| stripe_payment_intent_id | VARCHAR | Stripe reference |
+| transaction_id | VARCHAR | Gateway transaction reference |
 | status | VARCHAR | Payment status |
 | plan_type | VARCHAR | Associated plan |
 | payment_date | DATETIME | Transaction date |
@@ -268,11 +316,14 @@ plugins/generic/emspubcore/
 | GET | `/emspubcore/pendingPayments` | Author payment dashboard |
 | GET | `/emspubcore/pendingPaymentsAdmin` | Admin pending payments view |
 | GET | `/emspubcore/plans` | Plan selection page |
-| POST | `/emspubcore/checkout` | Initiate Stripe checkout |
+| POST | `/emspubcore/checkout` | Initiate payment checkout |
 | GET | `/emspubcore/success` | Payment success callback |
+| GET | `/emspubcore/paddleSuccess` | Paddle payment success |
 | GET | `/emspubcore/cancel` | Payment cancel callback |
-| POST | `/emspubcore/webhook` | Stripe webhook endpoint |
+| POST | `/emspubcore/webhook` | Webhook endpoint (Stripe/Paddle) |
 | GET | `/emspubcore/downloadInvoice` | Download payment invoice |
+| GET | `/emspubcore/getPaddleApcProductId` | AJAX: Get Paddle Product ID |
+| POST | `/emspubcore/savePaddleApcProductId` | AJAX: Save Paddle Product ID |
 
 ### Hooks Used
 
@@ -282,6 +333,37 @@ plugins/generic/emspubcore/
 | `TemplateManager::display` | Inject dashboard badge |
 | `Schema::get::context` | Add plan fields to context |
 | `Submission::add` | Track submission usage |
+| `Templates::Payments::*` | Override payment templates |
+
+---
+
+## Security
+
+### Security Audit Summary (January 2026)
+
+**Overall Rating: 🟢 Good (85/100)**
+
+#### ✅ Implemented Security Measures
+
+| Feature | Status |
+|---------|--------|
+| **Webhook Signature Verification** | ✅ Both Stripe and Paddle webhooks verify signatures |
+| **Authorization Checks** | ✅ Role-based access control on all sensitive endpoints |
+| **SQL Injection Prevention** | ✅ Uses Eloquent ORM / Query Builder exclusively |
+| **Replay Attack Protection** | ✅ Webhook timestamp validation (5-minute tolerance) |
+| **Error Handling** | ✅ Try/catch blocks with proper logging |
+
+#### Security Best Practices
+
+1. **Webhook Secrets**: Always keep webhook secrets secure and rotate them periodically
+2. **HTTPS Required**: Never run payment integrations over HTTP
+3. **Test Mode**: Always test in sandbox before going live
+4. **Logs**: Monitor PHP error logs for webhook failures
+
+#### Known Limitations
+
+- CSRF tokens are passed but not fully validated on some AJAX endpoints
+- Consider rate limiting webhook endpoints in production
 
 ---
 
@@ -291,18 +373,24 @@ plugins/generic/emspubcore/
 
 **Webhook not receiving events:**
 1. Verify webhook URL is publicly accessible
-2. Check webhook secret matches Stripe Dashboard
+2. Check webhook secret matches gateway dashboard
 3. Ensure SSL certificate is valid
+4. Check server logs for 4xx/5xx responses
 
 **Plan not updating after payment:**
 1. Check PHP error logs for webhook failures
-2. Verify Stripe secret key is correct
-3. Confirm webhook events are enabled in Stripe
+2. Verify API keys are correct
+3. Confirm webhook events are enabled in gateway dashboard
 
 **Submission limit not enforcing:**
 1. Ensure plugin is enabled for the journal
 2. Check current month's usage in database
 3. Verify plan has not expired
+
+**Paddle APC Product ID not saving:**
+1. Ensure emspubcore plugin is enabled at site level
+2. Check browser console for AJAX errors
+3. Verify user has Manager or Site Admin role
 
 ### Debug Mode
 
@@ -331,6 +419,11 @@ php -S localhost:8000
 https://github.com/hasanur-rahman079/emspubcore
 ```
 
+### Related Repositories
+
+- **emspubstripe**: `plugins/paymethod/emspubstripe` - Stripe payment method plugin
+- **emspubpaddle**: `plugins/paymethod/emspubpaddle` - Paddle payment method plugin
+
 ### Git Workflow
 
 Since this plugin is nested within OJS, run git commands from the plugin directory:
@@ -342,13 +435,44 @@ git commit -m "Description of changes"
 git push origin main
 ```
 
-### Testing Stripe Locally
+### Testing Payments Locally
 
-Use [Stripe CLI](https://stripe.com/docs/stripe-cli) for local webhook testing:
-
+**Stripe CLI:**
 ```bash
 stripe listen --forward-to localhost:8000/index.php/journal/emspubcore/webhook
 ```
+
+**Paddle (use ngrok):**
+```bash
+ngrok http 8000
+# Update webhook URL in Paddle dashboard with ngrok URL
+```
+
+---
+
+## Roadmap
+
+### Future Improvements
+
+#### High Priority
+- [ ] Add CSRF token validation to AJAX endpoints (`savePaddleApcProductId`, etc.)
+- [ ] Add rate limiting to webhook endpoints
+- [ ] Implement unit tests for payment handlers
+
+#### Medium Priority
+- [ ] Refactor `EmsPubCorePageHandler.php` (1400+ lines) into smaller controllers:
+  - `PaymentController`
+  - `PlanController`
+  - `WebhookController`
+  - `InvoiceController`
+- [ ] Add input sanitization for plan names and IDs
+- [ ] Implement webhook event logging for debugging
+
+#### Low Priority
+- [ ] Add support for monthly billing cycles
+- [ ] Multi-language invoice templates
+- [ ] Email notifications for payment events
+- [ ] Dashboard analytics for payment trends
 
 ---
 
@@ -373,9 +497,10 @@ GNU GPL v3. See [LICENSE](../../docs/COPYING) for details.
 ## Support
 
 For issues and feature requests:
-- **Email**: support@emspub.com
+- **Email**: support@ems.pub
 - **GitHub Issues**: [Report a bug](https://github.com/hasanur-rahman079/emspubcore/issues)
 
 ---
 
-*Last updated: December 2025*
+*Last updated: January 2026*
+

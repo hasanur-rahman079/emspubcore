@@ -1,0 +1,239 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2024-12-10T00:00:00+00:00\n"
+"PO-Revision-Date: 2024-12-10T00:00:00+00:00\n"
+"Language: \n"
+
+msgid "plugins.generic.emspubcore.displayName"
+msgstr "EmsPubCore - EMS Core Plugin"
+
+msgid "plugins.generic.emspubcore.description"
+msgstr "Adds subscription-based plans for hosted journals with submission limits and Stripe payment integration."
+
+msgid "plugins.generic.emspubcore.settings.stripe"
+msgstr "Stripe Configuration"
+
+msgid "plugins.generic.emspubcore.settings.stripe.description"
+msgstr "Configure your Stripe API credentials for payment processing."
+
+msgid "plugins.generic.emspubcore.settings.testMode"
+msgstr "Enable Stripe Test Mode"
+
+msgid "plugins.generic.emspubcore.settings.publishableKey"
+msgstr "Stripe Publishable Key"
+
+msgid "plugins.generic.emspubcore.settings.secretKey"
+msgstr "Stripe Secret Key"
+
+msgid "plugins.generic.emspubcore.settings.webhookSecret"
+msgstr "Stripe Webhook Secret"
+
+msgid "plugins.generic.emspubcore.settings.webhookSecret.description"
+msgstr "Required for receiving subscription updates from Stripe."
+
+msgid "plugins.generic.emspubcore.settings.planLimits"
+msgstr "Plan Limits"
+
+msgid "plugins.generic.emspubcore.plan"
+msgstr "Plan"
+
+msgid "plugins.generic.emspubcore.plan.free"
+msgstr "Free"
+
+msgid "plugins.generic.emspubcore.plan.basic"
+msgstr "Basic"
+
+msgid "plugins.generic.emspubcore.plan.premium"
+msgstr "Premium"
+
+msgid "plugins.generic.emspubcore.submissionsPerMonth"
+msgstr "Submissions/Year"
+
+msgid "plugins.generic.emspubcore.submissionsPerYear"
+msgstr "Submissions/Year"
+
+msgid "plugins.generic.emspubcore.monthlyPrice"
+msgstr "Monthly Price"
+
+msgid "plugins.generic.emspubcore.yearlyPrice"
+msgstr "Yearly Price"
+
+msgid "plugins.generic.emspubcore.billingCycle"
+msgstr "Billing Cycle"
+
+msgid "plugins.generic.emspubcore.billingCycle.monthly"
+msgstr "Monthly"
+
+msgid "plugins.generic.emspubcore.billingCycle.yearly"
+msgstr "Yearly"
+
+msgid "plugins.generic.emspubcore.currentPlan"
+msgstr "Current Plan"
+
+msgid "plugins.generic.emspubcore.submissionsUsed"
+msgstr "Submissions Used"
+
+msgid "plugins.generic.emspubcore.validUntil"
+msgstr "Valid Until"
+
+msgid "plugins.generic.emspubcore.noPlanAssigned"
+msgstr "No plan assigned. Using Free plan by default."
+
+msgid "plugins.generic.emspubcore.selectPlan"
+msgstr "Select Plan"
+
+msgid "plugins.generic.emspubcore.error.limitReached"
+msgstr "You have reached your yearly submission limit ({$limit}) for the {$plan} plan. Please upgrade your plan to submit more articles."
+
+msgid "plugins.generic.emspubcore.error.paymentFailed"
+msgstr "Payment failed. Please try again or contact support."
+
+msgid "plugins.generic.emspubcore.error.invalidPlan"
+msgstr "Invalid plan selected."
+
+msgid "plugins.generic.emspubcore.badge.title"
+msgstr "Submissions: {$used} of {$limit} used this year"
+
+msgid "plugins.generic.emspubcore.success.planUpdated"
+msgstr "Journal plan has been updated successfully."
+
+msgid "plugins.generic.emspubcore.success.paymentComplete"
+msgstr "Payment completed successfully. Your plan has been upgraded."
+
+msgid "plugins.generic.emspubcore.upgrade"
+msgstr "Upgrade"
+
+msgid "plugins.generic.emspubcore.plans"
+msgstr "Submission Plans"
+
+msgid "plugins.generic.emspubcore.addNewPlan"
+msgstr "Add New Plan"
+
+msgid "plugins.generic.emspubcore.price"
+msgstr "Price"
+
+msgid "plugins.generic.emspubcore.discountedPrice"
+msgstr "Discounted Price"
+
+msgid "plugins.generic.emspubcore.submissionCount"
+msgstr "Submission Count"
+
+msgid "plugins.generic.emspubcore.existingPlans"
+msgstr "Existing Plans"
+
+msgid "plugins.generic.emspubcore.submissions"
+msgstr "Submissions"
+
+msgid "plugins.generic.emspubcore.usage"
+msgstr "Usage"
+
+msgid "plugins.generic.emspubcore.subscriptionHistory"
+msgstr "Payment History"
+
+msgid "plugins.generic.emspubcore.currentPlan"
+msgstr "Current Plan"
+
+msgid "common.status"
+msgstr "Status"
+
+msgid "plugins.generic.emspubcore.menu.processingPayments"
+msgstr "My Invoices"
+
+msgid "plugins.generic.emspubcore.search.placeholder"
+msgstr "Search by name or article id"
+
+msgid "plugins.generic.emspubcore.journalPayments"
+msgstr "Payment History"
+
+msgid "plugins.generic.emspubcore.journalManagement"
+msgstr "Journal Management"
+
+msgid "plugins.generic.emspubcore.paymentGateways"
+msgstr "Payment gateways"
+
+msgid "plugins.generic.emspubcore.subscriptionDate"
+msgstr "Subscription Date"
+
+msgid "plugins.generic.emspubcore.lastPayment"
+msgstr "Last Payment"
+
+msgid "plugins.generic.emspubcore.nextPayment"
+msgstr "Next Payment"
+
+msgid "plugins.paymethod.emspubpaddle.displayName"
+msgstr "Paddle Payment (EMS.pub)"
+
+msgid "plugins.paymethod.emspubpaddle.settings.testMode"
+msgstr "Test Mode"
+
+msgid "plugins.paymethod.emspubpaddle.settings.vendorId"
+msgstr "Vendor ID"
+
+msgid "plugins.paymethod.emspubpaddle.settings.apiKey"
+msgstr "API Key"
+
+msgid "plugins.paymethod.emspubpaddle.settings.clientToken"
+msgstr "Client Token (for Paddle.js)"
+
+msgid "plugins.paymethod.emspubstripe.displayName"
+msgstr "Stripe Payment (EMS.pub)"
+
+msgid "plugins.paymethod.emspubstripe.settings"
+msgstr "Stripe Payment Settings"
+
+msgid "plugins.paymethod.emspubstripe.settings.testMode"
+msgstr "Test Mode"
+
+msgid "plugins.paymethod.emspubstripe.settings.accountName"
+msgstr "Account Name"
+
+msgid "plugins.paymethod.emspubstripe.settings.clientId"
+msgstr "Publishable Key"
+
+msgid "plugins.paymethod.emspubstripe.settings.secret"
+msgstr "Secret Key"
+
+msgid "plugins.generic.emspubcore.settings.subscriptionGateway"
+msgstr "Subscription Payment Gateway"
+
+msgid "plugins.generic.emspubcore.settings.subscriptionGateway.description"
+msgstr "Select the active payment gateway for journal subscriptions."
+
+msgid "plugins.generic.emspubcore.success.title"
+msgstr "Payment Successful"
+
+msgid "plugins.generic.emspubcore.success.message"
+msgstr "Thank you! Your payment was successful and your plan has been upgraded."
+
+msgid "plugins.generic.emspubcore.success.backToSettings"
+msgstr "Back to Settings"
+
+msgid "plugins.generic.emspubcore.success.pending.title"
+msgstr "Payment Pending"
+
+msgid "plugins.generic.emspubcore.success.pending.message"
+msgstr "Your payment is being processed. It may take a few moments for your plan to be updated. Status: {$status}"
+
+msgid "plugins.generic.emspubcore.success.error.title"
+msgstr "Verification Error"
+
+msgid "plugins.generic.emspubcore.success.error.message"
+msgstr "We encountered an error verifying your payment: {$error}"
+
+msgid "plugins.generic.emspubcore.cancel.title"
+msgstr "Payment Cancelled"
+
+msgid "plugins.generic.emspubcore.cancel.message"
+msgstr "The payment process was cancelled. No charges were made."
+
+msgid "plugins.generic.emspubcore.cancel.tryAgain"
+msgstr "Try Again"
+
+

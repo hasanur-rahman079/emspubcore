@@ -53,14 +53,30 @@ class PaymentHistoryDAO extends DAO
      */
     public function logPayment($data)
     {
+        $transactionId = $data['transaction_id'] ?? null;
+        $stripeId = $data['stripe_payment_intent_id'] ?? null;
+        $paddleId = $data['paddle_transaction_id'] ?? null;
+
+        if (!$stripeId && !$paddleId && $transactionId) {
+            if (strpos($transactionId, 'pi_') === 0) {
+                $stripeId = $transactionId;
+            } elseif (strpos($transactionId, 'txn_') === 0 || strpos($transactionId, 'trn_') === 0) {
+                $paddleId = $transactionId;
+            }
+        }
+
         DB::table('emspubcore_payment_history')->insert([
-            'journal_id' => $data['journal_id'],
-            'amount' => $data['amount'],
-            'currency' => $data['currency'],
-            'stripe_payment_intent_id' => $data['stripe_payment_intent_id'] ?? null,
-            'status' => $data['status'],
-            'payment_date' => $data['payment_date'],
+            'journal_id' => (int) $data['journal_id'],
+            'amount' => (int) $data['amount'],
+            'tax_amount' => (int) ($data['tax_amount'] ?? 0),
+            'currency' => $data['currency'] ?? 'USD',
+            'stripe_payment_intent_id' => $stripeId,
+            'paddle_transaction_id' => $paddleId,
+            'status' => $data['status'] ?? 'succeeded',
+            'payment_date' => $data['payment_date'] ?? date('Y-m-d H:i:s'),
             'plan_type' => $data['plan_type'] ?? null,
+            'billing_cycle' => $data['billing_cycle'] ?? null,
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
 }

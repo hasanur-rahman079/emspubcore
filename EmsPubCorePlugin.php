@@ -106,6 +106,11 @@ class EmsPubCorePlugin extends GenericPlugin
 
             // Override Payments Grid to add Article Details
             Hook::add('LoadComponentHandler', [$this, 'setupGridHandler']);
+
+            // Hook into PaymentTypesForm (Journal Level)
+            Hook::add('paymenttypesform::initData', [$this, 'initPaymentTypesData']);
+            Hook::add('paymenttypesform::readInputData', [$this, 'readPaymentTypesInputData']);
+            Hook::add('paymenttypesform::execute', [$this, 'executePaymentTypes']);
         }
         
         return $success;
@@ -114,7 +119,7 @@ class EmsPubCorePlugin extends GenericPlugin
     /**
      * Get or create JournalPlanDAO instance
      */
-    private function getJournalPlanDAO(): classes\JournalPlanDAO
+    public function getJournalPlanDAO(): classes\JournalPlanDAO
     {
         if (!$this->journalPlanDAO) {
             $this->journalPlanDAO = new classes\JournalPlanDAO();
@@ -125,7 +130,7 @@ class EmsPubCorePlugin extends GenericPlugin
     /**
      * Get or create SubmissionUsageDAO instance
      */
-    private function getSubmissionUsageDAO(): classes\SubmissionUsageDAO
+    public function getSubmissionUsageDAO(): classes\SubmissionUsageDAO
     {
         if (!$this->submissionUsageDAO) {
             $this->submissionUsageDAO = new classes\SubmissionUsageDAO();
@@ -136,7 +141,7 @@ class EmsPubCorePlugin extends GenericPlugin
     /**
      * Get or create PaymentHistoryDAO instance
      */
-    private function getPaymentHistoryDAO(): classes\PaymentHistoryDAO
+    public function getPaymentHistoryDAO(): classes\PaymentHistoryDAO
     {
         if (!$this->paymentHistoryDAO) {
             $this->paymentHistoryDAO = new classes\PaymentHistoryDAO();
@@ -168,15 +173,23 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->decimal('price', 10, 2)->default(0.00);
                 $table->decimal('discounted_price', 10, 2)->nullable();
                 $table->integer('submission_limit')->default(0);
+                $table->string('paddle_price_id')->nullable();
                 $table->text('description')->nullable();
             });
 
             // Insert default plans
             \Illuminate\Support\Facades\DB::table('emspubcore_plans')->insert([
-                ['name' => 'Free', 'price' => 0.00, 'submission_limit' => 5],
-                ['name' => 'Basic', 'price' => 290.00, 'submission_limit' => 100],
-                ['name' => 'Premium', 'price' => 490.00, 'submission_limit' => 200]
+                ['name' => 'Free', 'price' => 0.00, 'submission_limit' => 5, 'paddle_price_id' => null],
+                ['name' => 'Basic', 'price' => 290.00, 'submission_limit' => 100, 'paddle_price_id' => 'pro_01...'],
+                ['name' => 'Premium', 'price' => 490.00, 'submission_limit' => 200, 'paddle_price_id' => 'pro_02...']
             ]);
+        } else {
+            // Table exists, check if column exists
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_plans', 'paddle_price_id')) {
+                \Illuminate\Support\Facades\Schema::table('emspubcore_plans', function ($table) {
+                    $table->string('paddle_price_id')->nullable();
+                });
+            }
         }
 
         // 2. Journal Plans Table
@@ -189,6 +202,8 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->integer('submissions_limit')->default(5);
                 $table->string('stripe_subscription_id')->nullable();
                 $table->string('stripe_customer_id')->nullable();
+                $table->string('paddle_subscription_id')->nullable();
+                $table->string('paddle_customer_id')->nullable();
                 $table->dateTime('plan_start_date')->nullable();
                 $table->dateTime('plan_end_date')->nullable();
                 $table->boolean('is_active')->default(true);
@@ -211,34 +226,65 @@ class EmsPubCorePlugin extends GenericPlugin
         // 4. Payment History Table
         if (!\Illuminate\Support\Facades\Schema::hasTable('emspubcore_payment_history')) {
             \Illuminate\Support\Facades\Schema::create('emspubcore_payment_history', function ($table) {
-                $table->bigIncrements('id');
+                $table->bigIncrements('payment_id');
                 $table->bigInteger('journal_id');
                 $table->integer('amount'); // In cents
                 $table->string('currency', 3)->default('USD');
                 $table->string('status');
                 $table->string('stripe_payment_intent_id')->nullable();
                 $table->string('stripe_invoice_id')->nullable();
+                $table->string('paddle_transaction_id')->nullable();
                 $table->string('plan_type')->nullable();
+                $table->string('billing_cycle', 20)->nullable();
                 $table->dateTime('payment_date');
+                $table->timestamp('created_at')->nullable();
+            });
+        } else {
+            // Ensure all columns exist
+            \Illuminate\Support\Facades\Schema::table('emspubcore_payment_history', function ($table) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'payment_id')) {
+                    // This is a special case if 'id' was used instead
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'id')) {
+                        $table->renameColumn('id', 'payment_id');
+                    }
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'paddle_transaction_id')) {
+                    $table->string('paddle_transaction_id')->nullable()->after('stripe_invoice_id');
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'plan_type')) {
+                    $table->string('plan_type')->nullable()->after('paddle_transaction_id');
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'billing_cycle')) {
+                    $table->string('billing_cycle', 20)->nullable()->after('plan_type');
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'payment_date')) {
+                    $table->dateTime('payment_date')->nullable();
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'created_at')) {
+                    $table->timestamp('created_at')->nullable();
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'tax_amount')) {
+                    $table->integer('tax_amount')->default(0)->after('amount');
+                }
             });
         }
     }
 
     /**
-     * Override payments/index.tpl to add Pending Payments tab
+     * Override payments templates
      */
     public function overridePaymentsTemplate($hookName, $args)
     {
         $filePath = &$args[0];
+        error_log('EmsPubCorePlugin: Template Hook for: ' . $filePath);
         
-        // Only override payments/index.tpl
+        // Handle payments/index.tpl
         if (strpos($filePath, 'payments/index.tpl') !== false || 
             strpos($filePath, 'payments' . DIRECTORY_SEPARATOR . 'index.tpl') !== false) {
             
             $request = \APP\core\Application::get()->getRequest();
             $context = $request->getContext();
             
-            // Only override for authorized users
             if ($context && (\PKP\security\Validation::isSiteAdmin() || 
                 \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $context->getId()) || 
                 \PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_SUBSCRIPTION_MANAGER, $context->getId()))) {
@@ -248,6 +294,16 @@ class EmsPubCorePlugin extends GenericPlugin
                     $filePath = $overridePath;
                 }
             }
+        }
+
+        // Handle payments/paymentTypesForm.tpl
+        if (strpos($filePath, 'payments/paymentTypesForm.tpl') !== false || 
+            strpos($filePath, 'payments' . DIRECTORY_SEPARATOR . 'paymentTypesForm.tpl') !== false) {
+            
+             $overridePath = $this->getPluginPath() . '/templates/payments/paymentTypesForm.tpl';
+             if (file_exists($overridePath)) {
+                 $filePath = $overridePath;
+             }
         }
         
         return false;
@@ -414,7 +470,7 @@ class EmsPubCorePlugin extends GenericPlugin
             $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsPubPaymentsGridHandler();
             return true;
         }
-
+        
         // Block unauthorized access to Plugin management grids
         if ($component === 'grid.settings.plugins.SettingsPluginGridHandler' || $component === 'grid.plugins.PluginGalleryGridHandler') {
             if (!\PKP\security\Validation::isSiteAdmin()) {
@@ -424,6 +480,67 @@ class EmsPubCorePlugin extends GenericPlugin
             }
         }
 
+        return false;
+    }
+
+    /**
+     * Initialize data for PaymentTypesForm
+     */
+    public function initPaymentTypesData($hookName, $args)
+    {
+        $form = $args[0];
+        $request = Application::get()->getRequest();
+        $context = $request->getContext();
+        
+        if ($context) {
+            // Try emspubcore settings first (primary storage)
+            $paddleApcProductId = $this->getSetting($context->getId(), 'paddleApcProductId');
+            
+            // Fallback to paddle plugin settings for backwards compatibility
+            if (empty($paddleApcProductId)) {
+                \PKP\plugins\PluginRegistry::loadCategory('paymethod', true);
+                $paddlePlugin = \PKP\plugins\PluginRegistry::getPlugin('paymethod', 'emspubpaddle');
+                if ($paddlePlugin) {
+                    $paddleApcProductId = $paddlePlugin->getSetting($context->getId(), 'paddleApcProductId');
+                }
+            }
+            
+            $form->setData('paddleApcProductId', $paddleApcProductId);
+        }
+        return false;
+    }
+
+    /**
+     * Read input data for PaymentTypesForm
+     */
+    public function readPaymentTypesInputData($hookName, $args)
+    {
+        $form = $args[0];
+        $vars = &$args[1];
+        $vars[] = 'paddleApcProductId';
+        return false;
+    }
+
+    /**
+     * Save data for PaymentTypesForm
+     */
+    public function executePaymentTypes($hookName, $args)
+    {
+        $form = $args[0];
+        $context = Application::get()->getRequest()->getContext();
+        if ($context) {
+            $paddleApcProductId = $form->getData('paddleApcProductId');
+            
+            // Save to emspubcore plugin settings (primary storage)
+            $this->updateSetting($context->getId(), 'paddleApcProductId', $paddleApcProductId, 'string');
+            
+            // Also save to paddle plugin settings for compatibility
+            \PKP\plugins\PluginRegistry::loadCategory('paymethod', true);
+            $paddlePlugin = \PKP\plugins\PluginRegistry::getPlugin('paymethod', 'emspubpaddle');
+            if ($paddlePlugin) {
+                $paddlePlugin->updateSetting($context->getId(), 'paddleApcProductId', $paddleApcProductId, 'string');
+            }
+        }
         return false;
     }
     /**
@@ -613,10 +730,15 @@ class EmsPubCorePlugin extends GenericPlugin
         // 4. Payment Gateways Tab
         try {
             $templateMgr->assign([
-                'stripePublishableKey' => $this->getSetting(null, 'stripePublishableKey'),
-                'stripeSecretKey' => $this->getSetting(null, 'stripeSecretKey'),
-                'stripeWebhookSecret' => $this->getSetting(null, 'stripeWebhookSecret'),
-                'stripeTestMode' => (bool) $this->getSetting(null, 'stripeTestMode'),
+                'stripePublishableKey' => $this->getSetting(0, 'stripePublishableKey'),
+                'stripeSecretKey' => $this->getSetting(0, 'stripeSecretKey'),
+                'stripeWebhookSecret' => $this->getSetting(0, 'stripeWebhookSecret'),
+                'stripeTestMode' => (bool) $this->getSetting(0, 'stripeTestMode'),
+                'paddleVendorId' => $this->getSetting(0, 'paddleVendorId'),
+                'paddleApiKey' => $this->getSetting(0, 'paddleApiKey'),
+                'paddleClientToken' => $this->getSetting(0, 'paddleClientToken'),
+                'paddleTestMode' => (bool) $this->getSetting(0, 'paddleTestMode'),
+                'subscriptionPaymentGateway' => $this->getSetting(0, 'subscriptionPaymentGateway') ?: 'stripe',
             ]);
             
             $output .= $templateMgr->fetch($this->getTemplateResource('adminPaymentGatewaysTab.tpl'));

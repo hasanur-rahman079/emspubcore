@@ -61,6 +61,94 @@
 		{/fbvFormSection}
 	{/fbvFormArea}
 
+	{fbvFormArea id="emspubcorePaddleSettings" title="plugins.generic.emspubcore.settings.paddle"}
+		<p class="pkp_help">{translate key="plugins.generic.emspubcore.settings.paddle.description"}</p>
+
+		{fbvFormSection}
+			{fbvElement
+				type="checkbox"
+				id="paddleTestMode"
+				label="plugins.generic.emspubcore.settings.testMode"
+				checked=$paddleTestMode
+			}
+		{/fbvFormSection}
+
+		{fbvFormSection title="plugins.generic.emspubcore.settings.paddleVendorId"}
+			{fbvElement
+				type="text"
+				id="paddleVendorId"
+				value=$paddleVendorId
+				size=$fbvStyles.size.LARGE
+			}
+		{/fbvFormSection}
+
+		{fbvFormSection title="plugins.generic.emspubcore.settings.paddleApiKey"}
+			{fbvElement
+				type="text"
+				id="paddleApiKey"
+				value=$paddleApiKey
+				size=$fbvStyles.size.LARGE
+				password=true
+			}
+		{/fbvFormSection}
+
+		{fbvFormSection title="plugins.generic.emspubcore.settings.paddleClientToken"}
+			{fbvElement
+				type="text"
+				id="paddleClientToken"
+				value=$paddleClientToken
+				size=$fbvStyles.size.LARGE
+			}
+		{/fbvFormSection}
+
+		{fbvFormSection title="plugins.generic.emspubcore.settings.paddleWebhookSecret"}
+			{fbvElement
+				type="text"
+				id="paddleWebhookSecret"
+				value=$paddleWebhookSecret
+				size=$fbvStyles.size.LARGE
+				password=true
+			}
+		{/fbvFormSection}
+
+		{fbvFormSection title="plugins.generic.emspubcore.settings.paddleProductIds"}
+			{fbvElement
+				type="text"
+				id="paddleProductIdBasic"
+				value=$paddleProductIdBasic
+				label="Basic Plan Product ID"
+				size=$fbvStyles.size.MEDIUM
+			}
+			{fbvElement
+				type="text"
+				id="paddleProductIdStandard"
+				value=$paddleProductIdStandard
+				label="Standard Plan Product ID"
+				size=$fbvStyles.size.MEDIUM
+			}
+			{fbvElement
+				type="text"
+				id="paddleProductIdPremium"
+				value=$paddleProductIdPremium
+				label="Premium Plan Product ID"
+				size=$fbvStyles.size.MEDIUM
+			}
+		{/fbvFormSection}
+	{/fbvFormArea}
+
+	{fbvFormArea id="emspubcorePaymentGateway" title="plugins.generic.emspubcore.settings.subscriptionGateway"}
+		{fbvFormSection}
+			{fbvElement
+				type="select"
+				id="subscriptionPaymentGateway"
+				from=$gatewayOptions
+				selected=$subscriptionPaymentGateway
+				translate=true
+				label="plugins.generic.emspubcore.settings.subscriptionGateway.description"
+			}
+		{/fbvFormSection}
+	{/fbvFormArea}
+
 	{fbvFormArea id="emspubcorePlanLimits" title="plugins.generic.emspubcore.settings.planLimits"}
 		<table class="pkpTable">
 			<thead>

@@ -36,7 +36,7 @@
 			{if $currentPlan && $currentPlan->getPlanType() == 'basic'}
 				<button class="pkp_button" disabled>{translate key="common.current"}</button>
 			{else}
-				<a href="{url page="emspubcore" op="checkout" plan="basic" billing="yearly"}" class="pkp_button">
+				<a href="{url page="emspubcore" op="checkout" plan="basic" billing="yearly"}" class="pkp_button upgrade-btn">
 					{translate key="plugins.generic.emspubcore.upgrade"}
 				</a>
 			{/if}
@@ -49,7 +49,7 @@
 			{if $currentPlan && $currentPlan->getPlanType() == 'premium'}
 				<button class="pkp_button" disabled>{translate key="common.current"}</button>
 			{else}
-				<a href="{url page="emspubcore" op="checkout" plan="premium" billing="yearly"}" class="pkp_button">
+				<a href="{url page="emspubcore" op="checkout" plan="premium" billing="yearly"}" class="pkp_button upgrade-btn">
 					{translate key="plugins.generic.emspubcore.upgrade"}
 				</a>
 			{/if}
