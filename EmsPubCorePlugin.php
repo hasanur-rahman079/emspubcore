@@ -45,6 +45,9 @@ class EmsPubCorePlugin extends GenericPlugin
     /** @var SubmissionUsageDAO */
     private $submissionUsageDAO;
 
+    /** @var PlanDAO */
+    private $planDAO;
+
     /** @var PaymentHistoryDAO */
     private $paymentHistoryDAO;
 
