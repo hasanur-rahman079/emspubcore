@@ -462,12 +462,17 @@ class EmsPubCorePlugin extends GenericPlugin
         $componentInstance =& $args[2];
 
         if ($component === 'grid.subscriptions.PaymentsGridHandler') {
-            // Load our custom handler and dependencies
             require_once(__DIR__ . '/controllers/grid/EmsPubPaymentsGridCellProvider.php');
             require_once(__DIR__ . '/controllers/grid/EmsPubPaymentsGridHandler.php');
-            
-            // Instantiate and assign our custom handler
             $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsPubPaymentsGridHandler();
+            return true;
+        }
+
+        // Restrict plugin management grid to site admins only.
+        // Auth check happens inside authorize() which fires after the auth layer.
+        if ($component === 'grid.settings.plugins.SettingsPluginGridHandler') {
+            require_once(__DIR__ . '/controllers/grid/EmsSiteAdminPluginGridHandler.php');
+            $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsSiteAdminPluginGridHandler();
             return true;
         }
 
