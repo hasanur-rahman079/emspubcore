@@ -1,128 +1,100 @@
 <tab id="emspubcorePaymentGateways" label="{translate key="plugins.generic.emspubcore.paymentGateways"}">
-    <div class="pkp_form" style="padding: 20px;">
-        <form class="pkp_form" id="paymentSettingsForm" method="POST" action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="saveGatewaySettings"}">
+    <link rel="stylesheet" href="{$baseUrl}/plugins/generic/emspubcore/styles/emspubcore.css" type="text/css" />
+
+    <div class="ems-tab-content">
+
+        <div id="stripeModeBanner">
+            {literal}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var cb = document.getElementById('stripeTestMode');
+                    var banner = document.getElementById('stripeModeBanner');
+                    function updateBanner() {
+                        var b = document.getElementById('ems-mode-banner-inner');
+                        if (cb && cb.checked) {
+                            b.className = 'ems-test-mode-banner';
+                            b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Test Mode active &mdash; use Stripe test keys. No real charges will be made.';
+                        } else {
+                            b.className = 'ems-live-banner';
+                            b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Live Mode &mdash; real payments will be processed. Ensure your live keys are entered below.';
+                        }
+                    }
+                    if (cb) { cb.addEventListener('change', updateBanner); updateBanner(); }
+                });
+            </script>
+            {/literal}
+            <div id="ems-mode-banner-inner" class="ems-test-mode-banner"></div>
+        </div>
+
+        <form class="pkp_form" id="paymentSettingsForm" method="POST"
+              action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="saveGatewaySettings"}">
             {csrf}
-            
-            <!-- Gateway Selection -->
-            <div class="pkp_form_section" style="margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
-                <div class="form-group">
-                    <label for="subscriptionPaymentGateway" style="font-weight: bold; display: block; margin-bottom: 10px;">{translate key="plugins.generic.emspubcore.settings.subscriptionGateway"}</label>
-                    <select name="subscriptionPaymentGateway" id="subscriptionPaymentGateway" class="pkp_form_input_text" style="width: 100%; max-width: 400px; padding: 8px;">
-                        <option value="stripe" {if $subscriptionPaymentGateway == 'stripe'}selected{/if}>Stripe</option>
-                        <option value="paddle" {if $subscriptionPaymentGateway == 'paddle'}selected{/if}>Paddle</option>
-                    </select>
-                    <p class="pkp_help" style="margin-top: 5px; font-size: 12px; color: #666;">{translate key="plugins.generic.emspubcore.settings.subscriptionGateway.description"}</p>
+
+            <!-- Stripe Section Header -->
+            <div class="ems-gateway-header">
+                <div class="ems-stripe-logo">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                        <rect width="24" height="24" rx="4" fill="#635bff"/>
+                        <path d="M11.5 9.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v.5h-3v-.5zM10 9.5C10 7.57 11.57 6 13.5 6S17 7.57 17 9.5V10h1v8H6v-8h1v-.5z" fill="white" opacity="0.9"/>
+                    </svg>
+                </div>
+                <div class="ems-gateway-title">
+                    <h3>{translate key="plugins.generic.emspubcore.settings.stripe"}</h3>
+                    <p>Stripe Billing &mdash; accept card payments and issue invoices automatically</p>
                 </div>
             </div>
 
-            <!-- Stripe Configuration Block -->
-            <div id="stripeConfigBlock" class="gateway-config-block" style="{if $subscriptionPaymentGateway != 'stripe'}display: none;{/if}">
-                <h3 style="margin-top: 0;">{translate key="plugins.generic.emspubcore.settings.stripe"}</h3>
-                
-                <div class="pkp_form_section">
-                    <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="stripeTestMode" name="stripeTestMode" {if $stripeTestMode}checked{/if} value="1" />
-                        <label for="stripeTestMode" style="margin: 0;">{translate key="plugins.generic.emspubcore.settings.testMode"}</label>
-                    </div>
+            <!-- Test Mode Toggle -->
+            <div class="ems-form-check">
+                <input type="checkbox" id="stripeTestMode" name="stripeTestMode"
+                       {if $stripeTestMode}checked{/if} value="1" />
+                <label for="stripeTestMode">{translate key="plugins.generic.emspubcore.settings.testMode"}</label>
+            </div>
 
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>{translate key="plugins.generic.emspubcore.settings.publishableKey"}</label>
-                        <input type="text" name="stripePublishableKey" class="pkp_form_input_text" value="{$stripePublishableKey|escape}" style="width: 100%;" placeholder="pk_test_..." />
-                    </div>
+            <!-- Keys -->
+            <div class="ems-form-group">
+                <label for="stripePublishableKey">{translate key="plugins.generic.emspubcore.settings.publishableKey"}</label>
+                <div class="ems-key-input-wrap">
+                    <input type="text" id="stripePublishableKey" name="stripePublishableKey"
+                           class="pkp_form_input_text ems-form-group input"
+                           style="width:100%; font-family:monospace; font-size:12px;"
+                           value="{$stripePublishableKey|escape}"
+                           placeholder="pk_test_..." autocomplete="off" />
+                </div>
+                <div class="ems-form-hint">Starts with <code>pk_test_</code> (test) or <code>pk_live_</code> (live)</div>
+            </div>
 
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>{translate key="plugins.generic.emspubcore.settings.secretKey"}</label>
-                        <input type="text" name="stripeSecretKey" class="pkp_form_input_text" value="{$stripeSecretKey|escape}" style="width: 100%;" placeholder="sk_test_..." />
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>{translate key="plugins.generic.emspubcore.settings.webhookSecret"}</label>
-                        <input type="text" name="stripeWebhookSecret" class="pkp_form_input_text" value="{$stripeWebhookSecret|escape}" style="width: 100%;" placeholder="whsec_..." />
-                    </div>
+            <div class="ems-form-group">
+                <label for="stripeSecretKey">{translate key="plugins.generic.emspubcore.settings.secretKey"}</label>
+                <div class="ems-key-input-wrap">
+                    <input type="password" id="stripeSecretKey" name="stripeSecretKey"
+                           class="pkp_form_input_text"
+                           style="width:100%; font-family:monospace; font-size:12px;"
+                           value="{$stripeSecretKey|escape}"
+                           placeholder="sk_test_..." autocomplete="new-password" />
+                </div>
+                <div class="ems-form-hint">Keep this secret. Never expose it in frontend code.</div>
+            </div>
+
+            <div class="ems-form-group">
+                <label for="stripeWebhookSecret">{translate key="plugins.generic.emspubcore.settings.webhookSecret"}</label>
+                <div class="ems-key-input-wrap">
+                    <input type="password" id="stripeWebhookSecret" name="stripeWebhookSecret"
+                           class="pkp_form_input_text"
+                           style="width:100%; font-family:monospace; font-size:12px;"
+                           value="{$stripeWebhookSecret|escape}"
+                           placeholder="whsec_..." autocomplete="new-password" />
+                </div>
+                <div class="ems-form-hint">
+                    Webhook endpoint: <code>{$baseUrl}/index.php/index/emspubcore/webhook</code>
+                    &mdash; listen for <code>checkout.session.completed</code> and <code>payment_intent.succeeded</code>.
                 </div>
             </div>
 
-            <!-- Paddle Configuration Block -->
-            <div id="paddleConfigBlock" class="gateway-config-block" style="{if $subscriptionPaymentGateway != 'paddle'}display: none;{/if}">
-                <h3 style="margin-top: 0;">{translate key="plugins.paymethod.emspubpaddle.displayName"}</h3>
-                
-                <div class="pkp_form_section">
-                    <div class="form-group" style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="paddleTestMode" name="paddleTestMode" {if $paddleTestMode}checked{/if} value="1" />
-                        <label for="paddleTestMode" style="margin: 0;">{translate key="plugins.paymethod.emspubpaddle.settings.testMode"}</label>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>{translate key="plugins.paymethod.emspubpaddle.settings.vendorId"}</label>
-                        <input type="text" name="paddleVendorId" class="pkp_form_input_text" value="{$paddleVendorId|escape}" style="width: 100%;" />
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>{translate key="plugins.paymethod.emspubpaddle.settings.apiKey"}</label>
-                        <input type="text" name="paddleApiKey" class="pkp_form_input_text" value="{$paddleApiKey|escape}" style="width: 100%;" />
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>{translate key="plugins.paymethod.emspubpaddle.settings.clientToken"}</label>
-                        <input type="text" name="paddleClientToken" class="pkp_form_input_text" value="{$paddleClientToken|escape}" style="width: 100%;" />
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label>Paddle Webhook Secret</label>
-                        <input type="text" name="paddleWebhookSecret" class="pkp_form_input_text" value="{$paddleWebhookSecret|escape}" style="width: 100%;" placeholder="pdl_ntfset_..." />
-                        <p class="pkp_help" style="margin-top: 5px; font-size: 12px; color: #666;">Your Paddle webhook signing secret from the Paddle Dashboard.</p>
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Webhook URL</label>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input type="text" id="paddleWebhookUrl" class="pkp_form_input_text" value="{$baseUrl}/index.php/$$/emspubcore/webhook" style="width: 100%; background-color: #f5f5f5;" readonly />
-                            <button type="button" id="copyWebhookUrl" class="pkp_button" style="white-space: nowrap;">Copy</button>
-                        </div>
-                        <p class="pkp_help" style="margin-top: 5px; font-size: 12px; color: #666;">
-                            Add this URL to your Paddle Dashboard → Developer Tools → Notifications. Replace <code>$$</code> with your journal path (e.g., <code>journal</code>).
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+            <div class="ems-form-actions">
                 <button class="pkp_button pkp_button_primary" type="submit">{translate key="common.save"}</button>
             </div>
         </form>
 
-        <script type="text/javascript">
-            $(function() {
-                var $select = $('#subscriptionPaymentGateway');
-                var toggleBlocks = function() {
-                    var selected = $select.val();
-                    $('.gateway-config-block').hide();
-                    if (selected === 'stripe') {
-                        $('#stripeConfigBlock').show();
-                    } else if (selected === 'paddle') {
-                        $('#paddleConfigBlock').show();
-                    }
-                };
-                
-                // Attach event
-                $select.on('change', toggleBlocks);
-                
-                // Initial run
-                toggleBlocks();
-                
-                // Copy webhook URL to clipboard
-                $('#copyWebhookUrl').on('click', function() {
-                    var $input = $('#paddleWebhookUrl');
-                    $input.select();
-                    document.execCommand('copy');
-                    
-                    var $btn = $(this);
-                    $btn.text('Copied!').css('background-color', '#28a745').css('color', 'white');
-                    setTimeout(function() {
-                        $btn.text('Copy').css('background-color', '').css('color', '');
-                    }, 2000);
-                });
-            });
-        </script>
     </div>
 </tab>

@@ -18,9 +18,6 @@ namespace APP\plugins\generic\emspubcore;
 
 use APP\handler\Handler;
 use APP\plugins\generic\emspubcore\controllers\StripeWebhookHandler;
-use Paddle\SDK\Environment;
-use Paddle\SDK\Client as PaddleClient;
-use Paddle\SDK\Options as PaddleOptions;
 
 class EmsPubCorePageHandler extends Handler
 {
@@ -55,7 +52,7 @@ class EmsPubCorePageHandler extends Handler
         // Managers and Admins can access admin functions
         $this->addRoleAssignment(
             [\PKP\security\Role::ROLE_ID_MANAGER, \PKP\security\Role::ROLE_ID_SITE_ADMIN, \PKP\security\Role::ROLE_ID_SUBSCRIPTION_MANAGER],
-            ['pendingPayments', 'pendingPaymentsAdmin', 'downloadInvoice', 'plans', 'checkout', 'success', 'cancel', 'assignPlan', 'savePlan', 'saveJournalDiscount', 'paddleCheckout', 'paddleSuccess', 'getPaddleApcProductId', 'savePaddleApcProductId']
+            ['pendingPayments', 'pendingPaymentsAdmin', 'downloadInvoice', 'plans', 'checkout', 'success', 'cancel', 'assignPlan', 'savePlan', 'saveJournalDiscount']
         );
         
         // Webhook is public (no auth needed)
@@ -490,7 +487,7 @@ class EmsPubCorePageHandler extends Handler
     }
 
     /**
-     * Handle Checkout (Redirect to Stripe/Paddle)
+     * Handle Checkout (Redirect to Stripe)
      */
     public function checkout($args, $request)
     {
@@ -513,35 +510,30 @@ class EmsPubCorePageHandler extends Handler
         }
 
         $planType = $request->getUserVar('plan');
-        $billingCycle = $request->getUserVar('billing'); 
+        $billingCycle = $request->getUserVar('billing');
 
         if ($planType === 'free' || strpos($planType, 'free') !== false) {
-             echo 'Free plans do not require checkout.'; 
+             echo 'Free plans do not require checkout.';
              return;
         }
-        
+
         $planDAO = $this->getPlugin()->getPlanDAO();
         $plans = $planDAO->getAll();
         $targetPlan = null;
         foreach ($plans as $p) {
             if (strtolower(str_replace(' ', '', $p->getName())) === strtolower($planType)) {
-                // If we haven't found a plan yet, or if this one has a Price ID while the previous one didn't
-                if (!$targetPlan || ($p->getPaddlePriceId() && !$targetPlan->getPaddlePriceId())) {
-                    $targetPlan = $p;
-                }
-                // If we found a match and it has a Price ID, we are good
-                if ($targetPlan->getPaddlePriceId()) break;
+                $targetPlan = $p;
+                break;
             }
         }
 
         $amount = null;
-        $paddlePriceId = null;
 
         if ($targetPlan) {
-            $baseAmount = ($billingCycle === 'yearly' && $targetPlan->getDiscountedPrice()) 
+            $baseAmount = ($billingCycle === 'yearly' && $targetPlan->getDiscountedPrice())
                 ? (float) $targetPlan->getDiscountedPrice()
                 : (float) $targetPlan->getPrice();
-            
+
             // Apply Journal-wide Discount Percentage
             $journalDiscount = (int) $this->getPlugin()->getSetting($context->getId(), 'journalDiscount');
             if ($journalDiscount > 0) {
@@ -549,21 +541,11 @@ class EmsPubCorePageHandler extends Handler
             }
 
             $amount = (int) round($baseAmount * 100);
-            $paddlePriceId = $targetPlan->getPaddlePriceId();
         }
 
         if (!$amount) {
             echo 'Invalid plan or billing cycle.';
             return;
-        }
-
-        $gateway = $this->getPlugin()->getSetting(0, 'subscriptionPaymentGateway') ?: 'stripe';
-
-
-        error_log('EmsPubCore Debug: Retrieved Gateway: ' . $gateway);
-
-        if ($gateway === 'paddle') {
-            return $this->handlePaddleCheckout($context, $planType, $billingCycle, $amount, $paddlePriceId, $request);
         }
 
         $secretKey = $this->getPlugin()->getSetting(0, 'stripeSecretKey');
@@ -900,7 +882,6 @@ class EmsPubCorePageHandler extends Handler
         $discountedPrice = $request->getUserVar('discounted_price');
         $discountedPrice = ($discountedPrice === '' || $discountedPrice === null) ? null : (float) $discountedPrice;
         $limit = (int) $request->getUserVar('submission_limit');
-        $paddlePriceId = $request->getUserVar('paddle_price_id');
 
         if ($planId) {
             $plan = $planDAO->getById($planId);
@@ -912,7 +893,6 @@ class EmsPubCorePageHandler extends Handler
         $plan->setPrice($price);
         $plan->setDiscountedPrice($discountedPrice);
         $plan->setSubmissionLimit($limit);
-        $plan->setPaddlePriceId($paddlePriceId);
         
         if ($planId) {
             $planDAO->updateObject($plan);
@@ -990,12 +970,6 @@ class EmsPubCorePageHandler extends Handler
             $plugin->updateSetting(0, 'stripeSecretKey', $secretKey, 'string');
             $plugin->updateSetting(0, 'stripeWebhookSecret', $webhookSecret, 'string');
             $plugin->updateSetting(0, 'stripeTestMode', $testMode, 'bool');
-
-            $plugin->updateSetting(0, 'paddleVendorId', $request->getUserVar('paddleVendorId'), 'string');
-            $plugin->updateSetting(0, 'paddleApiKey', $request->getUserVar('paddleApiKey'), 'string');
-            $plugin->updateSetting(0, 'paddleClientToken', $request->getUserVar('paddleClientToken'), 'string');
-            $plugin->updateSetting(0, 'paddleTestMode', $request->getUserVar('paddleTestMode') ? 1 : 0, 'bool');
-            $plugin->updateSetting(0, 'subscriptionPaymentGateway', $request->getUserVar('subscriptionPaymentGateway'), 'string');
             
             // Redirect using standard method
             $url = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'admin', 'settings', null, null, 'emspubcorePaymentGateways');
@@ -1041,7 +1015,7 @@ class EmsPubCorePageHandler extends Handler
             'pageTitle' => 'Invoice #' . $payment->getId(),
             'submission' => $submission,
             'payment' => $payment,
-            'paymentMethod' => (strpos($payment->getPayMethodPluginName(), 'paddle') !== false) ? 'Paddle' : 'Stripe',
+            'paymentMethod' => 'Stripe',
             'journal' => $context,
             'user' => $request->getUser(),
             'dateClean' => date('d M Y', strtotime($payment->getTimestamp()))
@@ -1069,367 +1043,13 @@ class EmsPubCorePageHandler extends Handler
         exit;
     }
 
-    public function handlePaddleCheckout($context, $planType, $billingCycle, $amount, $paddlePriceId, $request)
-    {
-        $plugin = $this->getPlugin();
-        $apiKey = $plugin->getSetting(0, 'paddleApiKey');
-        $clientToken = $plugin->getSetting(0, 'paddleClientToken');
-        $isTestMode = (bool) $plugin->getSetting(0, 'paddleTestMode');
-
-        if (!$apiKey || !$clientToken) {
-            echo 'Paddle gateway not configured.';
-            return;
-        }
-
-        // Load Paddle SDK
-        if (!class_exists('\Paddle\SDK\Client')) {
-             if (file_exists($plugin->getPluginPath() . '/vendor/autoload.php')) {
-                 require_once($plugin->getPluginPath() . '/vendor/autoload.php');
-             }
-        }
-
-        if (!class_exists('\Paddle\SDK\Client')) {
-             echo 'Paddle SDK not found. Please run composer update.';
-             return;
-        }
-
-        // Get Price ID from plans table (robust lookup)
-        $planDAO = \PKP\db\DAORegistry::getDAO('PlanDAO');
-        $allPlans = $planDAO->getAll();
-        $plan = null;
-        
-        // Normalize the requested plan type for comparison (lowercase, no spaces)
-        $normRequested = strtolower(str_replace(' ', '', $planType));
-        
-        foreach ($allPlans as $p) {
-            $normName = strtolower(str_replace(' ', '', $p->getName()));
-            if ($normName === $normRequested) {
-                $plan = $p;
-                break;
-            }
-        }
-        
-        $productId = $plan ? $plan->getPaddlePriceId() : null;
-
-        if (!$productId) {
-            // Fallback to settings (legacy way)
-            $settingKey = 'paddleProductId' . ucfirst($planType); // e.g., paddleProductIdBasic
-            $productId = $plugin->getSetting(0, $settingKey);
-        }
-
-        if (!$productId) {
-            echo 'Paddle Price ID not configured for ' . ucfirst($planType) . ' plan.';
-            return;
-        }
-
-        try {
-            $paddle = new PaddleClient(
-                apiKey: $apiKey,
-                options: new PaddleOptions($isTestMode ? Environment::SANDBOX : Environment::PRODUCTION)
-            );
-
-            // Determine if we are using a Product ID or Price ID
-            $isProductId = str_starts_with($productId, 'pro_');
-
-            $items = [];
-            if ($isProductId) {
-                // Use Product ID: Create a non-catalog price to support OJS discounts
-                $items[] = [
-                    'price' => [
-                        'description' => ($plan ? $plan->getName() : ucfirst($planType)) . ' Plan (' . ucfirst($billingCycle) . ')',
-                        'name' => ($plan ? $plan->getName() : ucfirst($planType)) . ' Plan',
-                        'unit_price' => [
-                            'amount' => (string) round($amount),
-                            'currency_code' => 'USD'
-                        ],
-                        'tax_mode' => 'external',
-                        'product_id' => $productId,
-                        'quantity' => [
-                            'minimum' => 1,
-                            'maximum' => 1
-                        ]
-                    ],
-                    'quantity' => 1
-                ];
-            } else {
-                // Use Price ID: Use catalog price directly
-                $items[] = [
-                    'price_id' => $productId,
-                    'quantity' => 1
-                ];
-            }
-
-            // Create Transaction with Price Override using postRaw for maximum compatibility
-            $response = $paddle->postRaw('/transactions', [
-                'items' => $items,
-                'custom_data' => [
-                    'journalId' => (int) $context->getId(),
-                    'planType' => $planType,
-                    'billingCycle' => $billingCycle
-                ]
-            ]);
-
-            $responseData = json_decode($response->getBody()->getContents(), true);
-            $transactionId = $responseData['data']['id'] ?? null;
-
-            if (!$transactionId) {
-                error_log('Paddle Transaction Creation Failed: ' . print_r($responseData, true));
-                echo 'Failed to create Paddle transaction: ' . ($responseData['error']['detail'] ?? 'Invalid request');
-                return;
-            }
-
-            $templateMgr = \APP\template\TemplateManager::getManager($request);
-            $templateMgr->assign([
-                'paddleClientToken' => $clientToken,
-                'paddleEnv' => $isTestMode ? 'sandbox' : 'production',
-                'transactionId' => $transactionId,
-                'successUrl' => $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'emspubcore', 'paddleSuccess', [], ['journalId' => $context->getId()]),
-                'cancelUrl' => $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'management', 'settings', ['workflow'], null, 'emspubcorePlan'),
-            ]);
-            
-            $templateMgr->display($plugin->getTemplateResource('paddleLauncher.tpl'));
-            exit;
-
-        } catch (\Exception $e) {
-            echo 'Paddle Error: ' . $e->getMessage();
-            return;
-        }
-    }
-
-    /**
-     * Handle Paddle Success
-     */
-    public function paddleSuccess($args, $request)
-    {
-        $transactionId = $request->getUserVar('transaction_id');
-        $journalId = (int) $request->getUserVar('journalId');
-        $context = $request->getContext();
-        
-        if (!$transactionId || !$journalId) {
-             $request->redirect(null, 'index');
-             return;
-        }
-
-        $plugin = $this->getPlugin();
-        $apiKey = $plugin->getSetting(0, 'paddleApiKey');
-        $isTestMode = (bool) $plugin->getSetting(0, 'paddleTestMode');
-        
-        // Load Paddle SDK
-        if (!class_exists('\Paddle\SDK\Client')) {
-             if (file_exists($plugin->getPluginPath() . '/vendor/autoload.php')) {
-                 require_once($plugin->getPluginPath() . '/vendor/autoload.php');
-             }
-        }
-
-        try {
-            $paddle = new PaddleClient(
-                apiKey: $apiKey,
-                options: new PaddleOptions($isTestMode ? Environment::SANDBOX : Environment::PRODUCTION)
-            );
-
-            // Fetch transaction
-            $response = $paddle->getRaw("/transactions/{$transactionId}");
-            $responseData = json_decode($response->getBody()->getContents(), true);
-            $transaction = $responseData['data'] ?? null;
-            
-            if (!$transaction) {
-                error_log("Paddle Success: Transaction not found: {$transactionId}");
-                $request->redirect(null, 'index');
-                return;
-            }
-
-            if ($transaction['status'] === 'completed' || $transaction['status'] === 'paid') {
-                // Determine Plan Details from Custom Data
-                $customData = (array) ($transaction['custom_data'] ?? []);
-                $planType = $customData['planType'] ?? 'free';
-                $billingCycle = $customData['billingCycle'] ?? 'yearly';
-
-                // Calculate Carryover from previous plan
-                $journalPlanDAO = \PKP\db\DAORegistry::getDAO('JournalPlanDAO');
-                $usageDAO = \PKP\db\DAORegistry::getDAO('SubmissionUsageDAO');
-                $planDAO = \PKP\db\DAORegistry::getDAO('PlanDAO');
-
-                $oldPlan = $journalPlanDAO->getByJournalId($journalId);
-                $remaining = 0;
-                if ($oldPlan) {
-                    $oldLimit = $oldPlan->getSubmissionsLimit();
-                    $usage = ($oldPlan->getBillingCycle() === 'yearly') 
-                        ? $usageDAO->getYearlyCount($journalId) 
-                        : $usageDAO->getCurrentMonthCount($journalId);
-                    $remaining = max(0, $oldLimit - $usage);
-                }
-
-                // Get base limit of NEW plan (robust lookup)
-                $allPlans = $planDAO->getAll();
-                $targetPlanBase = null;
-                $normRequested = strtolower(str_replace(' ', '', $planType));
-                foreach ($allPlans as $p) {
-                    $normName = strtolower(str_replace(' ', '', $p->getName()));
-                    if ($normName === $normRequested) {
-                        $targetPlanBase = $p;
-                        break;
-                    }
-                }
-                
-                $baseLimit = $targetPlanBase ? $targetPlanBase->getSubmissionLimit() : 100;
-                
-                // Carryover only if it's an UPGRADE (different plan type)
-                $isUpgrade = ($oldPlan && strtolower($oldPlan->getPlanType()) !== strtolower($planType));
-                $finalLimit = $baseLimit + ($isUpgrade ? $remaining : 0);
-
-                $startDate = date('Y-m-d H:i:s');
-                $duration = ($billingCycle === 'yearly') ? '+1 year' : '+1 month';
-                $endDate = date('Y-m-d H:i:s', strtotime($duration, strtotime($startDate)));
-
-                $plan = $oldPlan; // Re-use the object we already fetched
-                
-                if ($plan) {
-                    $plan->setPlanType($planType);
-                    $plan->setBillingCycle($billingCycle);
-                    $plan->setSubmissionsLimit($finalLimit);
-                    $plan->setPlanStartDate($startDate);
-                    $plan->setPlanEndDate($endDate);
-                    $plan->setPaddleSubscriptionId($transaction['subscription_id'] ?? null); 
-                    $plan->setPaddleCustomerId($transaction['customer_id'] ?? null);
-                    $plan->setIsActive(1);
-                    $journalPlanDAO->updateObject($plan);
-                } else {
-                    $newPlan = $journalPlanDAO->newDataObject();
-                    $newPlan->setJournalId($journalId);
-                    $newPlan->setPlanType($planType);
-                    $newPlan->setBillingCycle($billingCycle);
-                    $newPlan->setSubmissionsLimit($finalLimit);
-                    $newPlan->setPlanStartDate($startDate);
-                    $newPlan->setPlanEndDate($endDate);
-                    $newPlan->setPaddleSubscriptionId($transaction['subscription_id'] ?? null);
-                    $newPlan->setPaddleCustomerId($transaction['customer_id'] ?? null);
-                    $newPlan->setIsActive(1);
-                    $journalPlanDAO->insertObject($newPlan);
-                }
-
-                // Log Payment
-                try {
-                    $paymentWrapperDAO = \PKP\db\DAORegistry::getDAO('PaymentHistoryDAO');
-                    $paymentWrapperDAO->logPayment([
-                        'journal_id' => $journalId,
-                        'amount' => (int) ($transaction['details']['totals']['total'] ?? 0),
-                        'tax_amount' => (int) ($transaction['details']['totals']['tax'] ?? 0),
-                        'currency' => $transaction['currency_code'] ?? 'USD',
-                        'transaction_id' => $transaction['id'],
-                        'status' => 'succeeded',
-                        'payment_date' => date('Y-m-d H:i:s'),
-                        'plan_type' => $planType,
-                        'billing_cycle' => $billingCycle
-                    ]);
-                } catch (\Exception $e) {
-                    error_log('EmsPubCore Success: Failed to log payment for journal ' . $journalId . ' (Transaction: ' . $transaction['id'] . '): ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-                }
-
-                // Success Page with Auto-Redirect
-                // In OJS 3.4+, workflow settings are at /management/settings/workflow
-                $backLink = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'management', 'settings', ['workflow'], null, 'emspubcorePlan');
-                
-                $messageTranslated = __('plugins.generic.emspubcore.success.message');
-                if (strpos($messageTranslated, '##') === 0) {
-                    $messageTranslated = 'Thank you! Your payment was successful and your plan has been upgraded.';
-                }
-                $messageTranslated .= '<script>setTimeout(function(){ window.location.href="' . $backLink . '"; }, 3000);</script>';
-                $messageTranslated .= '<div style="margin-top: 20px; font-style: italic; color: #666;">Redirecting to settings in 3 seconds...</div>';
-
-                $templateMgr = \APP\template\TemplateManager::getManager($request);
-                $templateMgr->assign([
-                    'pageTitle' => 'plugins.generic.emspubcore.success.title',
-                    'messageTranslated' => $messageTranslated,
-                    'backLink' => $backLink,
-                    'backLinkLabel' => 'plugins.generic.emspubcore.success.backToSettings'
-                ]);
-                $templateMgr->display('frontend/pages/message.tpl');
-                return;
-            } else {
-                // Pending or other status
-                $templateMgr = \APP\template\TemplateManager::getManager($request);
-                $templateMgr->assign([
-                    'pageTitle' => 'plugins.generic.emspubcore.success.pending.title',
-                    'message' => 'plugins.generic.emspubcore.success.pending.message',
-                    'messageParams' => ['status' => $transaction['status'] ?? 'unknown'],
-                    'backLink' => $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'management', 'settings', ['workflow'], null, 'emspubcorePlan'),
-                    'backLinkLabel' => 'plugins.generic.emspubcore.success.backToSettings'
-                ]);
-                $templateMgr->display('frontend/pages/message.tpl');
-                return;
-            }
-        } catch (\Exception $e) {
-            $templateMgr = \APP\template\TemplateManager::getManager($request);
-            $templateMgr->assign([
-                'pageTitle' => 'plugins.generic.emspubcore.success.error.title',
-                'message' => 'plugins.generic.emspubcore.success.error.message',
-                'messageParams' => ['error' => $e->getMessage()],
-                'backLink' => $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'management', 'settings', ['workflow'], null, 'emspubcorePlan'),
-                'backLinkLabel' => 'plugins.generic.emspubcore.success.backToSettings'
-            ]);
-            $templateMgr->display('frontend/pages/message.tpl');
-            return;
-        }
-    }
-
     /**
      * Handle Webhook routing
      */
     public function webhook($args, $request)
     {
-        // Detect Gateway
-        $signature = $_SERVER['HTTP_PADDLE_SIGNATURE'] ?? null;
-        if ($signature) {
-            $handler = new \APP\plugins\generic\emspubcore\controllers\PaddleWebhookHandler();
-            return $handler->webhook($args, $request);
-        }
-
-        // Fallback to Stripe
         $handler = new \APP\plugins\generic\emspubcore\controllers\StripeWebhookHandler();
         return $handler->webhook($args, $request);
-    }
-
-    /**
-     * AJAX: Get Paddle APC Product ID
-     */
-    public function getPaddleApcProductId($args, $request)
-    {
-        $context = $request->getContext();
-        header('Content-Type: application/json');
-        
-        if (!$context) {
-            echo json_encode(['paddleApcProductId' => '']);
-            return;
-        }
-        
-        $paddleApcProductId = $this->getPlugin()->getSetting($context->getId(), 'paddleApcProductId');
-        echo json_encode(['paddleApcProductId' => $paddleApcProductId ?: '']);
-    }
-
-    /**
-     * AJAX: Save Paddle APC Product ID
-     */
-    public function savePaddleApcProductId($args, $request)
-    {
-        $context = $request->getContext();
-        header('Content-Type: application/json');
-        
-        if (!$context) {
-            echo json_encode(['success' => false, 'error' => 'No context']);
-            return;
-        }
-        
-        // Verify user has permission
-        if (!\PKP\security\Validation::isSiteAdmin() && 
-            !\PKP\security\Validation::isAuthorized(\PKP\security\Role::ROLE_ID_MANAGER, $context->getId())) {
-            echo json_encode(['success' => false, 'error' => 'Access denied']);
-            return;
-        }
-        
-        $paddleApcProductId = $request->getUserVar('paddleApcProductId');
-        $this->getPlugin()->updateSetting($context->getId(), 'paddleApcProductId', $paddleApcProductId, 'string');
-        
-        echo json_encode(['success' => true]);
     }
 
 }

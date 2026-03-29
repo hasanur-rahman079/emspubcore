@@ -85,11 +85,8 @@ $status = $payment['status'] === 'succeeded' ? 'PAID' : strtoupper($payment['sta
 $billingCycle = ucfirst($payment['billing_cycle'] ?? 'Yearly');
 $planValidUntil = $journalPlan ? date('F d, Y', strtotime($journalPlan['plan_end_date'])) : 'N/A';
 $submissionLimit = $journalPlan ? $journalPlan['submissions_limit'] : 'N/A';
-$transactionId = $payment['stripe_payment_intent_id'] ?? $payment['paddle_transaction_id'] ?? 'N/A';
+$transactionId = $payment['stripe_payment_intent_id'] ?? 'N/A';
 $paymentMethod = 'Stripe';
-if (strpos($transactionId, 'txn_') === 0 || strpos($transactionId, 'trn_') === 0) {
-    $paymentMethod = 'Paddle';
-}
 
 // Get logo as base64 - Filtered to white for professional look on green background
 $logoPath = __DIR__ . '/images/ems_brand_logo_full.png';

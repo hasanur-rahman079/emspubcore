@@ -1,6 +1,6 @@
 # EmsPubCore Plugin
 
-A comprehensive OJS plugin that provides journal subscription plans with submission limits, payment gateway integration (Stripe & Paddle), and article processing charge (APC) management.
+A comprehensive OJS plugin that provides journal subscription plans with submission limits, Stripe payment integration, and article processing charge (APC) management.
 
 ## Table of Contents
 

@@ -167,21 +167,6 @@ msgstr "Last Payment"
 msgid "plugins.generic.emspubcore.nextPayment"
 msgstr "Next Payment"
 
-msgid "plugins.paymethod.emspubpaddle.displayName"
-msgstr "Paddle Payment (EMS.pub)"
-
-msgid "plugins.paymethod.emspubpaddle.settings.testMode"
-msgstr "Test Mode"
-
-msgid "plugins.paymethod.emspubpaddle.settings.vendorId"
-msgstr "Vendor ID"
-
-msgid "plugins.paymethod.emspubpaddle.settings.apiKey"
-msgstr "API Key"
-
-msgid "plugins.paymethod.emspubpaddle.settings.clientToken"
-msgstr "Client Token (for Paddle.js)"
-
 msgid "plugins.paymethod.emspubstripe.displayName"
 msgstr "Stripe Payment (EMS.pub)"
 
@@ -199,12 +184,6 @@ msgstr "Publishable Key"
 
 msgid "plugins.paymethod.emspubstripe.settings.secret"
 msgstr "Secret Key"
-
-msgid "plugins.generic.emspubcore.settings.subscriptionGateway"
-msgstr "Subscription Payment Gateway"
-
-msgid "plugins.generic.emspubcore.settings.subscriptionGateway.description"
-msgstr "Select the active payment gateway for journal subscriptions."
 
 msgid "plugins.generic.emspubcore.success.title"
 msgstr "Payment Successful"
@@ -236,44 +215,8 @@ msgstr "The payment process was cancelled. No charges were made."
 msgid "plugins.generic.emspubcore.cancel.tryAgain"
 msgstr "Try Again"
 
-msgid "plugins.generic.emspubcore.settings.paddle"
-msgstr "Paddle Configuration"
-
-msgid "plugins.generic.emspubcore.settings.paddle.description"
-msgstr "Configure your Paddle Billing (v2) credentials."
-
-msgid "plugins.generic.emspubcore.settings.paddleVendorId"
-msgstr "Paddle Vendor ID"
-
-msgid "plugins.generic.emspubcore.settings.paddleApiKey"
-msgstr "Paddle API Key"
-
-msgid "plugins.generic.emspubcore.settings.paddleClientToken"
-msgstr "Paddle Client Token"
-
-msgid "plugins.generic.emspubcore.settings.paddleProductIds"
-msgstr "Paddle Product ID Mapping"
-
 msgid "plugins.generic.emspubcore.checkout.preparing"
 msgstr "Preparing Checkout"
 
 msgid "plugins.generic.emspubcore.checkout.redirecting"
 msgstr "We are redirecting you to our secure payment partner..."
-
-msgid "plugins.generic.emspubcore.settings.paddleWebhookSecret"
-msgstr "Paddle Webhook Secret"
-
-msgid "plugins.generic.emspubcore.settings.paddleProductIds.basic"
-msgstr "Basic Plan Product ID"
-
-msgid "plugins.generic.emspubcore.settings.paddleProductIds.standard"
-msgstr "Standard Plan Product ID"
-
-msgid "plugins.generic.emspubcore.settings.paddleProductIds.premium"
-msgstr "Premium Plan Product ID"
-
-msgid "plugins.generic.emspubcore.settings.paddleApcProductId"
-msgstr "Paddle Product ID for APC"
-
-msgid "plugins.generic.emspubcore.settings.paddleApcProductId.description"
-msgstr "Enter the Paddle Product ID to use for Article Processing Charges (APCs). This is required when using Paddle as your payment gateway."

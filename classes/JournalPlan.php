@@ -141,38 +141,6 @@ class JournalPlan extends DataObject
     }
 
     /**
-     * Get Paddle subscription ID (Alias for Stripe field)
-     */
-    public function getPaddleSubscriptionId(): ?string
-    {
-        return $this->getStripeSubscriptionId();
-    }
-
-    /**
-     * Set Paddle subscription ID (Alias for Stripe field)
-     */
-    public function setPaddleSubscriptionId(?string $subscriptionId): void
-    {
-        $this->setStripeSubscriptionId($subscriptionId);
-    }
-
-    /**
-     * Get Paddle customer ID (Alias for Stripe field)
-     */
-    public function getPaddleCustomerId(): ?string
-    {
-        return $this->getStripeCustomerId();
-    }
-
-    /**
-     * Set Paddle customer ID (Alias for Stripe field)
-     */
-    public function setPaddleCustomerId(?string $customerId): void
-    {
-        $this->setStripeCustomerId($customerId);
-    }
-
-    /**
      * Get plan start date
      */
     public function getPlanStartDate(): ?string

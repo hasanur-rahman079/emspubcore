@@ -174,23 +174,15 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->decimal('price', 10, 2)->default(0.00);
                 $table->decimal('discounted_price', 10, 2)->nullable();
                 $table->integer('submission_limit')->default(0);
-                $table->string('paddle_price_id')->nullable();
                 $table->text('description')->nullable();
             });
 
             // Insert default plans
             \Illuminate\Support\Facades\DB::table('emspubcore_plans')->insert([
-                ['name' => 'Free', 'price' => 0.00, 'submission_limit' => 5, 'paddle_price_id' => null],
-                ['name' => 'Basic', 'price' => 290.00, 'submission_limit' => 100, 'paddle_price_id' => 'pro_01...'],
-                ['name' => 'Premium', 'price' => 490.00, 'submission_limit' => 200, 'paddle_price_id' => 'pro_02...']
+                ['name' => 'Free', 'price' => 0.00, 'submission_limit' => 5],
+                ['name' => 'Basic', 'price' => 290.00, 'submission_limit' => 100],
+                ['name' => 'Premium', 'price' => 490.00, 'submission_limit' => 200]
             ]);
-        } else {
-            // Table exists, check if column exists
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_plans', 'paddle_price_id')) {
-                \Illuminate\Support\Facades\Schema::table('emspubcore_plans', function ($table) {
-                    $table->string('paddle_price_id')->nullable();
-                });
-            }
         }
 
         // 2. Journal Plans Table
@@ -203,8 +195,6 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->integer('submissions_limit')->default(5);
                 $table->string('stripe_subscription_id')->nullable();
                 $table->string('stripe_customer_id')->nullable();
-                $table->string('paddle_subscription_id')->nullable();
-                $table->string('paddle_customer_id')->nullable();
                 $table->dateTime('plan_start_date')->nullable();
                 $table->dateTime('plan_end_date')->nullable();
                 $table->boolean('is_active')->default(true);
@@ -234,7 +224,6 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->string('status');
                 $table->string('stripe_payment_intent_id')->nullable();
                 $table->string('stripe_invoice_id')->nullable();
-                $table->string('paddle_transaction_id')->nullable();
                 $table->string('plan_type')->nullable();
                 $table->string('billing_cycle', 20)->nullable();
                 $table->dateTime('payment_date');
@@ -249,11 +238,8 @@ class EmsPubCorePlugin extends GenericPlugin
                         $table->renameColumn('id', 'payment_id');
                     }
                 }
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'paddle_transaction_id')) {
-                    $table->string('paddle_transaction_id')->nullable()->after('stripe_invoice_id');
-                }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'plan_type')) {
-                    $table->string('plan_type')->nullable()->after('paddle_transaction_id');
+                    $table->string('plan_type')->nullable()->after('stripe_invoice_id');
                 }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'billing_cycle')) {
                     $table->string('billing_cycle', 20)->nullable()->after('plan_type');
@@ -324,15 +310,22 @@ class EmsPubCorePlugin extends GenericPlugin
         //    die('Hook running for: ' . $template . ' Menu: ' . var_export($templateMgr->getTemplateVars('menu'), true));
         // }
         
-        // 1. Hide Upgrade Banner
+        // 1. Inject badge responsive CSS + plugin UI rules into <head> for all backend pages
+        // addHeader() is the only reliable way to inject CSS in OJS's Vue-rendered backend.
+        // This fires before rendering so the <link>/<style> lands in the actual <head>.
+        $templateMgr->addHeader('emsBadgeResponsive', '<style>
+            /* Hide plan badge on mobile — injected via addHeader so it lands in <head> */
+            @media (max-width: 767px) { #ems-hdr-badge { display: none !important; } }
+        </style>', ['contexts' => ['backend']]);
+
         if (strpos($template, 'management/') === 0 || $template === 'admin/index.tpl' || $template === 'admin/settings.tpl') {
             if (!\PKP\security\Validation::isSiteAdmin()) {
                 $templateMgr->assign('newVersionAvailable', false);
-                
+
                 // Hide Plugins tab for non-admins via head injection
                 $style = '<style>
-                    #plugins-button, 
-                    #installedPlugins-button, 
+                    #plugins-button,
+                    #installedPlugins-button,
                     #pluginGallery-button,
                     .pkp_tab_plugins,
                     [id^="plugins-button"],
@@ -340,8 +333,8 @@ class EmsPubCorePlugin extends GenericPlugin
                     [id^="pluginGallery-button"],
                     [aria-controls="plugins"],
                     [aria-controls="installedPlugins"],
-                    [aria-controls="pluginGallery"] { 
-                        display: none !important; 
+                    [aria-controls="pluginGallery"] {
+                        display: none !important;
                     }
                 </style>';
                 $templateMgr->addHeader('emsHidePlugins', $style, ['contexts' => ['backend']]);
@@ -468,14 +461,6 @@ class EmsPubCorePlugin extends GenericPlugin
             return true;
         }
 
-        // Restrict plugin management grid to site admins only.
-        // Auth check happens inside authorize() which fires after the auth layer.
-        if ($component === 'grid.settings.plugins.SettingsPluginGridHandler') {
-            require_once(__DIR__ . '/controllers/grid/EmsSiteAdminPluginGridHandler.php');
-            $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsSiteAdminPluginGridHandler();
-            return true;
-        }
-
         return false;
     }
 
@@ -484,25 +469,6 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function initPaymentTypesData($hookName, $args)
     {
-        $form = $args[0];
-        $request = Application::get()->getRequest();
-        $context = $request->getContext();
-        
-        if ($context) {
-            // Try emspubcore settings first (primary storage)
-            $paddleApcProductId = $this->getSetting($context->getId(), 'paddleApcProductId');
-            
-            // Fallback to paddle plugin settings for backwards compatibility
-            if (empty($paddleApcProductId)) {
-                \PKP\plugins\PluginRegistry::loadCategory('paymethod', true);
-                $paddlePlugin = \PKP\plugins\PluginRegistry::getPlugin('paymethod', 'emspubpaddle');
-                if ($paddlePlugin) {
-                    $paddleApcProductId = $paddlePlugin->getSetting($context->getId(), 'paddleApcProductId');
-                }
-            }
-            
-            $form->setData('paddleApcProductId', $paddleApcProductId);
-        }
         return false;
     }
 
@@ -511,9 +477,6 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function readPaymentTypesInputData($hookName, $args)
     {
-        $form = $args[0];
-        $vars = &$args[1];
-        $vars[] = 'paddleApcProductId';
         return false;
     }
 
@@ -522,21 +485,6 @@ class EmsPubCorePlugin extends GenericPlugin
      */
     public function executePaymentTypes($hookName, $args)
     {
-        $form = $args[0];
-        $context = Application::get()->getRequest()->getContext();
-        if ($context) {
-            $paddleApcProductId = $form->getData('paddleApcProductId');
-            
-            // Save to emspubcore plugin settings (primary storage)
-            $this->updateSetting($context->getId(), 'paddleApcProductId', $paddleApcProductId, 'string');
-            
-            // Also save to paddle plugin settings for compatibility
-            \PKP\plugins\PluginRegistry::loadCategory('paymethod', true);
-            $paddlePlugin = \PKP\plugins\PluginRegistry::getPlugin('paymethod', 'emspubpaddle');
-            if ($paddlePlugin) {
-                $paddlePlugin->updateSetting($context->getId(), 'paddleApcProductId', $paddleApcProductId, 'string');
-            }
-        }
         return false;
     }
     /**
@@ -730,11 +678,6 @@ class EmsPubCorePlugin extends GenericPlugin
                 'stripeSecretKey' => $this->getSetting(0, 'stripeSecretKey'),
                 'stripeWebhookSecret' => $this->getSetting(0, 'stripeWebhookSecret'),
                 'stripeTestMode' => (bool) $this->getSetting(0, 'stripeTestMode'),
-                'paddleVendorId' => $this->getSetting(0, 'paddleVendorId'),
-                'paddleApiKey' => $this->getSetting(0, 'paddleApiKey'),
-                'paddleClientToken' => $this->getSetting(0, 'paddleClientToken'),
-                'paddleTestMode' => (bool) $this->getSetting(0, 'paddleTestMode'),
-                'subscriptionPaymentGateway' => $this->getSetting(0, 'subscriptionPaymentGateway') ?: 'stripe',
             ]);
             
             $output .= $templateMgr->fetch($this->getTemplateResource('adminPaymentGatewaysTab.tpl'));
@@ -870,62 +813,52 @@ class EmsPubCorePlugin extends GenericPlugin
         $displayCount = $currentUsage . '/' . $limit;
         
         $isOverLimit = $currentUsage >= $limit;
-        
+
         // Build informative tooltip
-        $remaining = $limit - $currentUsage;
-        $validUntil = ($plan && $plan->getPlanEndDate()) ? date('M j, Y', strtotime($plan->getPlanEndDate())) : 'N/A';
-        $title = ucfirst($planType) . ' Plan | ' . $currentUsage . ' of ' . $limit . ' submissions used | ' . $remaining . ' remaining | Valid until: ' . $validUntil;
-        
+        $remaining    = max(0, $limit - $currentUsage);
+        $validUntil   = ($plan && $plan->getPlanEndDate()) ? date('M j, Y', strtotime($plan->getPlanEndDate())) : 'N/A';
+        $title        = htmlspecialchars(ucfirst($planType) . ' Plan | ' . $currentUsage . ' of ' . $limit . ' submissions used | ' . $remaining . ' remaining | Valid until: ' . $validUntil, ENT_QUOTES);
         if ($isOverLimit) {
-            $title .= ' | ⚠️ Limit Reached - Click to Upgrade';
-        }
-        
-        // Dynamic Styles
-        if ($isOverLimit) {
-            // Warning Style (Red)
-            $badgeBg = '#d9534f';
-            $badgeColor = '#fff';
-            $badgeBorder = '#d43f3a';
-            $textColor = '#fff';
-        } else {
-            // Normal Style (White/Blue)
-            $badgeBg = '#fff';
-            $badgeColor = '#006798';
-            $badgeBorder = '#e0e0e0';
-            $textColor = '#555';
+            $title .= ' | Limit Reached – Click to Upgrade';
         }
 
-        // Add CSS directly to ensure it loads even if head is already rendered
-        // Note: Inline styles used below for reliability
-        
-        // Link to the workflow settings plan tab
         $planUrl = $request->getDispatcher()->url($request, \PKP\core\PKPApplication::ROUTE_PAGE, null, 'management', 'settings', ['workflow'], null, 'emspubcorePlan');
 
+        // Truncate long plan names to keep the pill compact on desktop
+        $planLabel = htmlspecialchars(ucfirst($planType), ENT_QUOTES);
+        if (mb_strlen($planLabel) > 10) {
+            $planLabel = mb_substr($planLabel, 0, 10) . '…';
+        }
+
+        if ($isOverLimit) {
+            $badgeStyle = 'display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:20px;background:#dc2626;border:1px solid #b91c1c;box-shadow:0 1px 3px rgba(0,0,0,0.15);white-space:nowrap;text-decoration:none;font-weight:700;font-size:12px;';
+            $planStyle  = 'text-transform:uppercase;font-size:9px;letter-spacing:0.6px;color:rgba(255,255,255,0.85);padding-right:6px;border-right:1px solid rgba(255,255,255,0.3);line-height:1;';
+            $countStyle = 'color:#fff;font-size:12px;font-weight:700;line-height:1;';
+            $extra      = '<span style="font-size:9px;font-weight:700;background:rgba(0,0,0,0.2);color:#fff;padding:2px 5px;border-radius:3px;">!</span>';
+        } else {
+            $badgeStyle = 'display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:20px;background:#fff;border:1px solid #dde2e8;box-shadow:0 1px 3px rgba(0,0,0,0.07);white-space:nowrap;text-decoration:none;font-weight:700;font-size:12px;';
+            $planStyle  = 'text-transform:uppercase;font-size:9px;letter-spacing:0.6px;color:#64748b;padding-right:6px;border-right:1px solid #e2e8f0;line-height:1;';
+            $countStyle = 'color:#006798;font-size:12px;font-weight:700;line-height:1;';
+            $extra      = '';
+        }
+
+        // Responsive hiding is handled by addHeader() in modifyDisplay() — CSS lands in <head>.
         $badgeHtml = '
-        <div class="app__headerAction" style="display: flex; align-items: center; order: 99; margin-left: 10px; margin-right: 0;">
-            <a href="' . $planUrl . '" title="' . $title . '" style="text-decoration: none; display: block;">
-                <div style="background: ' . $badgeBg . '; color: ' . $badgeColor . '; padding: 2px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; display: flex; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); cursor: pointer; white-space: nowrap; border: 1px solid ' . $badgeBorder . '; align-items: center; height: 28px; transition: all 0.2s ease;">
-                    <span style="text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; color: ' . $textColor . '; padding-right: 8px; border-right: 1px solid ' . ($isOverLimit ? 'rgba(255,255,255,0.3)' : '#eee') . '; line-height: 1;">' . ucfirst($planType) . '</span> 
-                    <span style="color: ' . ($isOverLimit ? '#fff' : '#006798') . '; line-height: 1;">' . $displayCount . '</span>
-                    ' . ($isOverLimit ? '<span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; margin-left: -4px;">UPGRADE</span>' : '') . '
-                </div>
-            </a>
-        </div>';
+<div id="ems-hdr-badge" class="app__headerAction"
+     style="display:flex;align-items:center;order:99;margin-left:8px;flex-shrink:0;">
+    <a href="' . $planUrl . '" style="' . $badgeStyle . '">
+        <span style="' . $planStyle . '">' . $planLabel . '</span>
+        <span style="' . $countStyle . '">' . $displayCount . '</span>
+        ' . $extra . '
+    </a>
+</div>';
 
         $output .= $badgeHtml;
 
         return \PKP\plugins\Hook::CONTINUE;
         } catch (\Exception $e) {
-            // If data fetch fails, show error state
-            error_log('EmsPubCorePlugin Error: ' . $e->getMessage());
-            
-            $badgeHtml = '
-            <div class="app__headerAction" style="display: flex; align-items: center; margin-left: auto; margin-right: 10px;">
-                <div title="Error loading plan details. Please refresh." style="background: #fff; color: #d9534f; padding: 2px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; display: flex; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); cursor: help; white-space: nowrap; border: 1px solid #e0e0e0; align-items: center; height: 24px;">
-                    <span style="text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; color: #d9534f;">Error</span>
-                </div>
-            </div>';
-            $output .= $badgeHtml;
+            error_log('EmsPubCorePlugin renderHeaderBadge error: ' . $e->getMessage());
+            // Silent fail — don't break the header for other users
             return \PKP\plugins\Hook::CONTINUE;
         }
     }

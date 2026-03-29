@@ -108,22 +108,6 @@ class Plan extends DataObject
     }
 
     /**
-     * Get Paddle Price ID
-     */
-    public function getPaddlePriceId()
-    {
-        return $this->getData('paddle_price_id');
-    }
-
-    /**
-     * Set Paddle Price ID
-     */
-    public function setPaddlePriceId($priceId)
-    {
-        $this->setData('paddle_price_id', $priceId);
-    }
-
-    /**
      * Set description
      */
     public function setDescription($description)
