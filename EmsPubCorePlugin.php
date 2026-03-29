@@ -101,8 +101,6 @@ class EmsPubCorePlugin extends GenericPlugin
             
             // Register page handler for plugin routes
             Hook::add('LoadHandler', [$this, 'setupPageHandler']);
-            // Register page handler for plugin routes
-            Hook::add('LoadHandler', [$this, 'setupPageHandler']);
 
             // Override Payments Grid to add Article Details
             Hook::add('LoadComponentHandler', [$this, 'setupGridHandler']);
@@ -276,7 +274,6 @@ class EmsPubCorePlugin extends GenericPlugin
     public function overridePaymentsTemplate($hookName, $args)
     {
         $filePath = &$args[0];
-        error_log('EmsPubCorePlugin: Template Hook for: ' . $filePath);
         
         // Handle payments/index.tpl
         if (strpos($filePath, 'payments/index.tpl') !== false || 
