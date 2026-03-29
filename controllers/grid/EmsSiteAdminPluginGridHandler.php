@@ -10,9 +10,7 @@
 namespace APP\plugins\generic\emspubcore\controllers\grid;
 
 use APP\controllers\grid\settings\plugins\SettingsPluginGridHandler;
-use APP\core\Application;
 use PKP\security\Role;
-use PKP\security\Validation;
 
 class EmsSiteAdminPluginGridHandler extends SettingsPluginGridHandler
 {
@@ -31,6 +29,12 @@ class EmsSiteAdminPluginGridHandler extends SettingsPluginGridHandler
             return false;
         }
 
-        return parent::authorize($request, $args, $roleAssignments);
+        try {
+            return parent::authorize($request, $args, $roleAssignments);
+        } catch (\Throwable $e) {
+            error_log('[EmsSiteAdminPluginGridHandler] authorize() exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            // Return false (auth denial) rather than letting the exception propagate as HTTP 500
+            return false;
+        }
     }
 }
