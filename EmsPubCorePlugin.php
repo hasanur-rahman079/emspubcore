@@ -350,6 +350,14 @@ class EmsPubCorePlugin extends GenericPlugin
                     }
                 </style>';
                 $templateMgr->addHeader('emsHidePlugins', $style, ['contexts' => ['backend']]);
+
+                // Hide DOI Registration tab for non-admins
+                $templateMgr->addHeader('emsHideDoisRegistration', '<style>
+                    #doisRegistration-button,
+                    [aria-controls="doisRegistration"] {
+                        display: none !important;
+                    }
+                </style>', ['contexts' => ['backend']]);
             }
         }
         
