@@ -470,10 +470,12 @@ class EmsPubCorePlugin extends GenericPlugin
             $componentInstance = new \APP\plugins\generic\emspubcore\controllers\grid\EmsPubPaymentsGridHandler();
             return true;
         }
-        
+
         // Block unauthorized access to Plugin management grids
         if ($component === 'grid.settings.plugins.SettingsPluginGridHandler' || $component === 'grid.plugins.PluginGalleryGridHandler') {
-            if (!\PKP\security\Validation::isSiteAdmin()) {
+            $user = Application::get()->getRequest()->getUser();
+            $isSiteAdmin = $user && \PKP\db\DAORegistry::getDAO('RoleDAO')->userHasRole(null, $user->getId(), \PKP\security\Role::ROLE_ID_SITE_ADMIN);
+            if (!$isSiteAdmin) {
                 header('HTTP/1.1 403 Forbidden');
                 echo 'Access Denied: Only EMS Site Administrators can manage plugins.';
                 exit;
