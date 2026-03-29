@@ -39,6 +39,9 @@ require_once(__DIR__ . '/EmsPubCorePageHandler.php');
 
 class EmsPubCorePlugin extends GenericPlugin
 {
+    /** @var bool Whether table checks have already run this process */
+    private static $tablesChecked = false;
+
     /** @var JournalPlanDAO */
     private $journalPlanDAO;
 
@@ -75,7 +78,17 @@ class EmsPubCorePlugin extends GenericPlugin
             DAORegistry::registerDAO('PaymentHistoryDAO', $this->paymentHistoryDAO);
 
             // Ensure tables exist (Self-healing for dev)
-            $this->checkAndCreateTables();
+            // Wrapped in try-catch so a schema failure never crashes plugin registration
+            // (which would break the Plugin Grid AJAX endpoint with infinite loading)
+            if (!self::$tablesChecked) {
+                try {
+                    $this->checkAndCreateTables();
+                    self::$tablesChecked = true;
+                } catch (\Throwable $e) {
+                    error_log('EmsPubCore: checkAndCreateTables() failed — ' . $e->getMessage());
+                    self::$tablesChecked = true; // Don't retry this request
+                }
+            }
 
             // Hook into submission validation to check limits
             Hook::add('Submission::validateSubmit', [$this, 'checkSubmissionLimit']);
@@ -230,30 +243,29 @@ class EmsPubCorePlugin extends GenericPlugin
                 $table->timestamp('created_at')->nullable();
             });
         } else {
-            // Ensure all columns exist
-            \Illuminate\Support\Facades\Schema::table('emspubcore_payment_history', function ($table) {
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'payment_id')) {
-                    // This is a special case if 'id' was used instead
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'id')) {
-                        $table->renameColumn('id', 'payment_id');
-                    }
-                }
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'plan_type')) {
-                    $table->string('plan_type')->nullable()->after('stripe_invoice_id');
-                }
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'billing_cycle')) {
-                    $table->string('billing_cycle', 20)->nullable()->after('plan_type');
-                }
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'payment_date')) {
-                    $table->dateTime('payment_date')->nullable();
-                }
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'created_at')) {
-                    $table->timestamp('created_at')->nullable();
-                }
-                if (!\Illuminate\Support\Facades\Schema::hasColumn('emspubcore_payment_history', 'tax_amount')) {
-                    $table->integer('tax_amount')->default(0)->after('amount');
-                }
-            });
+            // Ensure all columns exist — each migration in its own try-catch
+            // so one failing column doesn't block the rest
+            $columns = \Illuminate\Support\Facades\Schema::getColumnListing('emspubcore_payment_history');
+            $existing = array_flip($columns);
+
+            if (!isset($existing['payment_id']) && isset($existing['id'])) {
+                try { \Illuminate\Support\Facades\DB::statement('ALTER TABLE emspubcore_payment_history CHANGE `id` `payment_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT'); } catch (\Throwable $e) { error_log('EmsPubCore migration: ' . $e->getMessage()); }
+            }
+            if (!isset($existing['plan_type'])) {
+                try { \Illuminate\Support\Facades\DB::statement('ALTER TABLE emspubcore_payment_history ADD COLUMN `plan_type` VARCHAR(255) NULL'); } catch (\Throwable $e) { error_log('EmsPubCore migration: ' . $e->getMessage()); }
+            }
+            if (!isset($existing['billing_cycle'])) {
+                try { \Illuminate\Support\Facades\DB::statement('ALTER TABLE emspubcore_payment_history ADD COLUMN `billing_cycle` VARCHAR(20) NULL'); } catch (\Throwable $e) { error_log('EmsPubCore migration: ' . $e->getMessage()); }
+            }
+            if (!isset($existing['payment_date'])) {
+                try { \Illuminate\Support\Facades\DB::statement('ALTER TABLE emspubcore_payment_history ADD COLUMN `payment_date` DATETIME NULL'); } catch (\Throwable $e) { error_log('EmsPubCore migration: ' . $e->getMessage()); }
+            }
+            if (!isset($existing['created_at'])) {
+                try { \Illuminate\Support\Facades\DB::statement('ALTER TABLE emspubcore_payment_history ADD COLUMN `created_at` TIMESTAMP NULL'); } catch (\Throwable $e) { error_log('EmsPubCore migration: ' . $e->getMessage()); }
+            }
+            if (!isset($existing['tax_amount'])) {
+                try { \Illuminate\Support\Facades\DB::statement('ALTER TABLE emspubcore_payment_history ADD COLUMN `tax_amount` INT NOT NULL DEFAULT 0'); } catch (\Throwable $e) { error_log('EmsPubCore migration: ' . $e->getMessage()); }
+            }
         }
     }
 
