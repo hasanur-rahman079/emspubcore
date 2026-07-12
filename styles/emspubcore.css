@@ -253,6 +253,20 @@
     margin-top: 2px;
 }
 
+/* Table column alignment helpers */
+.ems-col-num { text-align: right; white-space: nowrap; }
+.ems-col-date { white-space: nowrap; color: #64748b; font-size: 13px; }
+.ems-col-action { text-align: right; white-space: nowrap; }
+
+.ems-text-muted { color: #94a3b8; }
+
+/* Compact amount display */
+.ems-amount { font-size: 14px; color: #1e293b; }
+.ems-currency { font-size: 11px; color: #94a3b8; margin-left: 4px; }
+
+/* Monospace input for API keys */
+.ems-mono-input { font-family: monospace; font-size: 12px; letter-spacing: 0.3px; }
+
 /* ============================================================
    FORMS
    ============================================================ */

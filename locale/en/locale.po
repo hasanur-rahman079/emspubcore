@@ -15,7 +15,7 @@ msgid "plugins.generic.emspubcore.displayName"
 msgstr "EmsPubCore - EMS Core Plugin"
 
 msgid "plugins.generic.emspubcore.description"
-msgstr "Adds subscription-based plans for hosted journals with submission limits and Stripe payment integration."
+msgstr "Core platform infrastructure for multi-journal SaaS — provides tiered subscription plans with usage-based submission limits, automated Stripe billing and invoicing, journal lifecycle management, and site-wide payment orchestration. This plugin is the operational backbone of the hosting platform."
 
 msgid "plugins.generic.emspubcore.settings.stripe"
 msgstr "Stripe Configuration"

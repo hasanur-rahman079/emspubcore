@@ -19,8 +19,8 @@
                     <tr>
                         <th>Invoice</th>
                         <th>Journal</th>
-                        <th>Date</th>
-                        <th>Amount</th>
+                        <th class="ems-col-date">Date</th>
+                        <th class="ems-col-num">Amount</th>
                         <th>Plan</th>
                         <th>Status</th>
                     </tr>
@@ -42,14 +42,10 @@
                                 </div>
                             </td>
                             <td class="ems-table-label">{$payment->journal_name|escape}</td>
-                            <td style="color:#64748b; font-size:13px; white-space:nowrap;">
-                                {$payment->payment_date|substr:0:10}
-                            </td>
-                            <td>
-                                <strong style="font-size:14px; color:#1e293b;">
-                                    ${$payment->amount / 100|string_format:"%.2f"}
-                                </strong>
-                                <span style="font-size:11px; color:#94a3b8; margin-left:4px;">USD</span>
+                            <td class="ems-col-date ems-text-muted">{$payment->payment_date|substr:0:10}</td>
+                            <td class="ems-col-num">
+                                <strong class="ems-amount">${$payment->amount / 100|string_format:"%.2f"}</strong>
+                                <span class="ems-currency">USD</span>
                             </td>
                             <td>
                                 <span class="ems-badge ems-plan-{$planLower}">

@@ -3,7 +3,6 @@
 
     <script>
         $(function() {
-            // Populate edit form when clicking Edit
             $('.ems-edit-plan-btn').click(function(e) {
                 e.preventDefault();
                 var $btn = $(this);
@@ -14,16 +13,17 @@
                 $('#planForm input[name="submission_limit"]').val($btn.data('limit'));
                 $('#planFormSubmitBtn').text('{translate key="common.save"}');
                 $('#planFormTitle').text('{translate key="plugins.generic.emspubcore.editPlan"}');
+                $('#planFormCancelBtn').show();
                 $('html, body').animate({ scrollTop: 0 }, 'fast');
                 $('#planForm input[name="name"]').focus();
             });
 
-            // Cancel edit
             $('#planFormCancelBtn').click(function() {
                 $('#planForm')[0].reset();
                 $('#planForm input[name="planId"]').val('');
                 $('#planFormSubmitBtn').text('{translate key="common.add"}');
                 $('#planFormTitle').text('{translate key="plugins.generic.emspubcore.addNewPlan"}');
+                $(this).hide();
             });
         });
     </script>
@@ -46,30 +46,36 @@
                     <input type="hidden" name="planId" value="" />
 
                     <div class="ems-card-body">
-                        <div class="ems-form-group">
-                            <label for="planName">{translate key="common.name"}</label>
-                            <input type="text" id="planName" name="name" class="pkp_form_input_text"
-                                   style="width:100%;" required placeholder="e.g. Basic" />
-                            <div class="ems-form-hint">Use a short, clear name. This is shown to journal managers.</div>
+                        <div class="ems-form-row">
+                            <div class="ems-form-group" style="flex:2;">
+                                <label for="planName">{translate key="common.name"}</label>
+                                <input type="text" id="planName" name="name"
+                                       class="pkpFormField__input pkpFormField--text__input"
+                                       required placeholder="e.g. Basic" />
+                                <div class="ems-form-hint">Use a short, clear name. This is shown to journal managers.</div>
+                            </div>
+                            <div class="ems-form-group">
+                                <label for="planLimit">{translate key="plugins.generic.emspubcore.submissionCount"}</label>
+                                <input type="number" id="planLimit" name="submission_limit" min="0"
+                                       class="pkpFormField__input pkpFormField--text__input"
+                                       required placeholder="10" />
+                                <div class="ems-form-hint">Enter 0 for unlimited.</div>
+                            </div>
                         </div>
 
                         <div class="ems-form-row">
                             <div class="ems-form-group">
                                 <label for="planPrice">{translate key="plugins.generic.emspubcore.price"} (USD/yr)</label>
                                 <input type="number" id="planPrice" name="price" step="0.01" min="0"
-                                       class="pkp_form_input_text" style="width:100%;" required placeholder="290.00" />
+                                       class="pkpFormField__input pkpFormField--text__input"
+                                       required placeholder="290.00" />
                             </div>
                             <div class="ems-form-group">
                                 <label for="planDiscounted">{translate key="plugins.generic.emspubcore.discountedPrice"} (USD/yr)</label>
                                 <input type="number" id="planDiscounted" name="discounted_price" step="0.01" min="0"
-                                       class="pkp_form_input_text" style="width:100%;" placeholder="250.00" />
+                                       class="pkpFormField__input pkpFormField--text__input"
+                                       placeholder="250.00" />
                                 <div class="ems-form-hint">Optional. Leave blank for no discount.</div>
-                            </div>
-                            <div class="ems-form-group">
-                                <label for="planLimit">{translate key="plugins.generic.emspubcore.submissionCount"}</label>
-                                <input type="number" id="planLimit" name="submission_limit" min="0"
-                                       class="pkp_form_input_text" style="width:100%;" required placeholder="10" />
-                                <div class="ems-form-hint">Enter 0 for unlimited.</div>
                             </div>
                         </div>
                     </div>
@@ -103,37 +109,35 @@
                     <thead>
                         <tr>
                             <th>{translate key="common.name"}</th>
-                            <th>{translate key="plugins.generic.emspubcore.price"} (USD/yr)</th>
-                            <th>{translate key="plugins.generic.emspubcore.discountedPrice"}</th>
-                            <th>{translate key="plugins.generic.emspubcore.submissions"}</th>
-                            <th style="text-align:right;">{translate key="common.action"}</th>
+                            <th class="ems-col-num">{translate key="plugins.generic.emspubcore.price"} (USD/yr)</th>
+                            <th class="ems-col-num">{translate key="plugins.generic.emspubcore.discountedPrice"}</th>
+                            <th class="ems-col-num">{translate key="plugins.generic.emspubcore.submissions"}</th>
+                            <th class="ems-col-action">{translate key="common.action"}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {foreach from=$emspubcorePlans item=plan}
                             <tr>
-                                <td>
-                                    <span class="ems-table-label">{$plan->getName()|escape}</span>
-                                </td>
-                                <td><strong>${$plan->getPrice()|string_format:"%.2f"}</strong></td>
-                                <td>
+                                <td class="ems-table-label">{$plan->getName()|escape}</td>
+                                <td class="ems-col-num"><strong>${$plan->getPrice()|string_format:"%.2f"}</strong></td>
+                                <td class="ems-col-num">
                                     {if $plan->getDiscountedPrice()}
                                         <span class="ems-badge ems-badge-success">
                                             ${$plan->getDiscountedPrice()|string_format:"%.2f"}
                                         </span>
                                     {else}
-                                        <span style="color:#94a3b8;">&mdash;</span>
+                                        <span class="ems-text-muted">&mdash;</span>
                                     {/if}
                                 </td>
-                                <td>
+                                <td class="ems-col-num">
                                     {if $plan->getSubmissionLimit() == 0}
                                         <span class="ems-badge ems-badge-info">Unlimited</span>
                                     {else}
                                         {$plan->getSubmissionLimit()}
                                     {/if}
                                 </td>
-                                <td style="text-align:right;">
-                                    <a href="#" class="ems-btn ems-btn-secondary ems-btn-sm ems-edit-plan-btn"
+                                <td class="ems-col-action">
+                                    <a href="#" class="pkp_button ems-edit-plan-btn"
                                        data-id="{$plan->getId()}"
                                        data-name="{$plan->getName()|escape}"
                                        data-price="{$plan->getPrice()}"
@@ -142,7 +146,7 @@
                                         {translate key="common.edit"}
                                     </a>
                                     <a href="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="deletePlan" planId=$plan->getId()}"
-                                       class="ems-btn ems-btn-danger ems-btn-sm"
+                                       class="pkp_button pkp_button_offset"
                                        onclick="return confirm('{translate key="common.confirmDelete"}')">
                                         {translate key="common.delete"}
                                     </a>
@@ -164,14 +168,4 @@
         </div>
 
     </div>
-
-    <script>
-        // Show cancel button when editing
-        $(document).on('click', '.ems-edit-plan-btn', function() {
-            $('#planFormCancelBtn').show();
-        });
-        $('#planFormCancelBtn').click(function() {
-            $(this).hide();
-        });
-    </script>
 </tab>

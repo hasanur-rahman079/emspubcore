@@ -16,9 +16,9 @@
                     <tr>
                         <th>{translate key="context.context"}</th>
                         <th>{translate key="plugins.generic.emspubcore.currentPlan"}</th>
-                        <th>{translate key="plugins.generic.emspubcore.subscriptionDate"}</th>
-                        <th>{translate key="plugins.generic.emspubcore.nextPayment"}</th>
-                        <th style="width:170px;">Discount (%)</th>
+                        <th class="ems-col-date">{translate key="plugins.generic.emspubcore.subscriptionDate"}</th>
+                        <th class="ems-col-date">{translate key="plugins.generic.emspubcore.nextPayment"}</th>
+                        <th class="ems-col-num" style="width:150px;">Discount (%)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -31,13 +31,13 @@
                                     {$journal.planName}
                                 </span>
                             </td>
-                            <td style="color:#64748b; font-size:13px;">{$journal.subscriptionDate}</td>
-                            <td style="color:#64748b; font-size:13px;">{$journal.nextPayment}</td>
-                            <td>
+                            <td class="ems-col-date ems-text-muted">{$journal.subscriptionDate}</td>
+                            <td class="ems-col-date ems-text-muted">{$journal.nextPayment}</td>
+                            <td class="ems-col-num">
                                 <div class="ems-discount-wrap">
                                     <input type="number" class="ems-discount-input journal-discount-input"
                                            value="{$journal.discount|default:0}" min="0" max="100" />
-                                    <button class="ems-btn ems-btn-secondary ems-btn-sm save-discount-btn">
+                                    <button class="pkp_button save-discount-btn">
                                         {translate key="common.save"}
                                     </button>
                                 </div>
@@ -80,9 +80,9 @@
                     },
                     success: function(response) {
                         if (response.status) {
-                            $btn.addClass('ems-btn-success').removeClass('ems-btn-secondary').text('Saved!');
+                            $btn.removeClass('pkp_button_offset').addClass('pkp_button_primary').text('Saved!');
                             setTimeout(function() {
-                                $btn.removeClass('ems-btn-success').addClass('ems-btn-secondary')
+                                $btn.removeClass('pkp_button_primary').addClass('pkp_button_offset')
                                     .prop('disabled', false).text('{translate key="common.save"}');
                             }, 2000);
                         } else {

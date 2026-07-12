@@ -517,6 +517,26 @@ class EmsPubCorePlugin extends GenericPlugin
     }
 
     /**
+     * Always enabled — this is a core platform plugin, cannot be disabled.
+     *
+     * @copydoc LazyLoadPlugin::getEnabled()
+     */
+    public function getEnabled($contextId = null)
+    {
+        return true;
+    }
+
+    /**
+     * Prevent disabling — this plugin is mandatory for the platform.
+     *
+     * @copydoc LazyLoadPlugin::getCanDisable()
+     */
+    public function getCanDisable()
+    {
+        return false;
+    }
+
+    /**
      * @copydoc Plugin::getDisplayName()
      */
     public function getDisplayName()
