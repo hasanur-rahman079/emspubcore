@@ -3,43 +3,73 @@
 
     <div class="ems-tab-content">
 
-        <!-- Plan Header / Status Row -->
+        <!-- ============================================================
+             PLAN HEADER — Journal name, status chips, usage progress
+             ============================================================ -->
         <div class="emspubcore-plan-header">
-            <h3>Yearly Submission Plan &mdash; {$emspubcoreJournalName}</h3>
-            <div class="emspubcore-status-row">
-                <span class="status-item">
-                    {translate key="plugins.generic.emspubcore.currentPlan"}:
-                    <strong>
+            <div class="ems-plan-header-top">
+                <div class="ems-plan-header-title">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#006798" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg>
+                        {translate key="plugins.generic.emspubcore.plan"} &mdash; {$emspubcoreJournalName}
+                    </h3>
+                    {if $emspubcoreCurrentPlan && $emspubcoreCurrentPlan->getIsActive()}
+                        <span class="ems-plan-status-pill ems-plan-status-active">
+                            <span class="ems-status-dot"></span>
+                            Active
+                        </span>
+                    {else}
+                        <span class="ems-plan-status-pill ems-plan-status-inactive">
+                            <span class="ems-status-dot"></span>
+                            No Active Plan
+                        </span>
+                    {/if}
+                </div>
+            </div>
+
+            <!-- Status metrics row -->
+            <div class="ems-plan-metrics">
+                <div class="ems-metric-item">
+                    <span class="ems-metric-label">Current Plan</span>
+                    <span class="ems-metric-value">
                         {if $emspubcoreCurrentPlan}
                             {$emspubcoreCurrentPlan->getPlanType()|ucfirst}
                         {else}
                             Free
                         {/if}
-                    </strong>
-                </span>
-                <span class="status-item">
-                    {translate key="common.status"}:
-                    {if $emspubcoreCurrentPlan && $emspubcoreCurrentPlan->getIsActive()}
-                        <span class="emspubcore-status-active">Active</span>
-                    {else}
-                        <span class="emspubcore-status-inactive">Inactive</span>
-                    {/if}
-                </span>
-                <span class="status-item">
-                    {translate key="plugins.generic.emspubcore.usage"}:
-                    <strong>
+                    </span>
+                </div>
+                <div class="ems-metric-divider"></div>
+                <div class="ems-metric-item">
+                    <span class="ems-metric-label">Billing</span>
+                    <span class="ems-metric-value">Yearly</span>
+                </div>
+                <div class="ems-metric-divider"></div>
+                <div class="ems-metric-item ems-metric-usage">
+                    <span class="ems-metric-label">Submissions Used</span>
+                    <span class="ems-metric-value">
                         {assign var=usageCount value=$emspubcoreCurrentUsage|default:0}
                         {if $emspubcoreCurrentLimit > 0}
-                            {$usageCount} / {$emspubcoreCurrentLimit} {translate key="plugins.generic.emspubcore.submissions"}
+                            {$usageCount} <span class="ems-metric-sep">/</span> {$emspubcoreCurrentLimit}
                         {else}
-                            {$usageCount} / Unlimited
+                            {$usageCount} <span class="ems-metric-sep">/</span> &infin;
                         {/if}
-                    </strong>
-                </span>
+                    </span>
+                    {if $emspubcoreCurrentLimit > 0}
+                        {assign var=usagePct value=$usageCount * 100 / $emspubcoreCurrentLimit}
+                        <div class="ems-usage-bar">
+                            <div class="ems-usage-fill {if $usagePct >= 90}ems-usage-danger{elseif $usagePct >= 70}ems-usage-warning{/if}"
+                                 style="width:{$usagePct|round}%;" title="{$usagePct|round}% used"></div>
+                        </div>
+                    {/if}
+                </div>
             </div>
         </div>
 
-        <!-- Hidden state inputs -->
+        <!-- Hidden state inputs (keep ALL for JS functionality) -->
         {assign var=currentPlanKey value="free"}
         {assign var=isPlanActive value=0}
         {if $emspubcoreCurrentPlan}
@@ -53,7 +83,10 @@
         <input type="hidden" id="emspubcoreBaseUrl"   value="{$baseUrl}" />
         <input type="hidden" id="isPlanActive"        value="{$isPlanActive}" />
 
-        <!-- Plan Cards -->
+        <!-- ============================================================
+             PLAN CARDS
+             ============================================================ -->
+        <div class="ems-section-label">{translate key="plugins.generic.emspubcore.selectPlan"}</div>
         <div class="emspubcore-card-container">
             {foreach from=$emspubcorePlansObject item=plan}
                 {assign var=planKey value=$plan->getName()|lower|replace:' ':''}
@@ -65,38 +98,79 @@
                     {assign var=finalPlanPrice value=$baseEffectivePrice - $discountAmount}
                 {/if}
 
-                <div class="emspubcore-plan-card {if $planKey == $currentPlanKey}selected current{/if}"
+                {* Determine tier class for color accent *}
+                {assign var=tierClass value="tier-default"}
+                {if $plan->getPrice() == 0}
+                    {assign var=tierClass value="tier-free"}
+                {elseif $plan->getPrice() <= 100}
+                    {assign var=tierClass value="tier-basic"}
+                {elseif $plan->getPrice() <= 500}
+                    {assign var=tierClass value="tier-premium"}
+                {else}
+                    {assign var=tierClass value="tier-enterprise"}
+                {/if}
+
+                <div class="emspubcore-plan-card {$tierClass} {if $planKey == $currentPlanKey}selected current{/if}"
                      data-plan="{$planKey}"
                      data-price="{$finalPlanPrice}">
 
+                    {if $planKey == $currentPlanKey && $isPlanActive}
+                        <div class="emspubcore-current-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Current Plan
+                        </div>
+                    {/if}
+
                     <div class="emspubcore-card-header">
+                        <span class="emspubcore-card-icon">
+                            {if $plan->getPrice() == 0}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                            {elseif $plan->getPrice() <= 100}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            {elseif $plan->getPrice() <= 500}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            {else}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                            {/if}
+                        </span>
                         <span class="emspubcore-card-title">{$plan->getName()|escape}</span>
                         <div class="emspubcore-radio"></div>
                     </div>
 
                     <div class="emspubcore-price-container">
                         {if $journalDiscountPct > 0}
-                            <div style="text-decoration:line-through; color:#94a3b8; font-size:15px; font-weight:500;">
-                                ${$baseEffectivePrice|string_format:"%.0f"}
+                            <div class="emspubcore-price-original">${$baseEffectivePrice|string_format:"%.0f"}</div>
+                            <div class="emspubcore-price-row">
+                                <span class="emspubcore-price-discounted">${$finalPlanPrice|string_format:"%.0f"}</span>
+                                <span class="emspubcore-price-period">/year</span>
                             </div>
-                            <span class="emspubcore-price-discounted">${$finalPlanPrice|string_format:"%.0f"}</span>
-                            <div style="margin-top:4px;">
-                                <span class="ems-badge ems-badge-success">Journal Discount {$journalDiscountPct}%</span>
-                            </div>
+                            <span class="ems-badge ems-badge-success" style="margin-top:6px;">Journal Discount {$journalDiscountPct}%</span>
                         {elseif $plan->getDiscountedPrice() && $plan->getDiscountedPrice() > 0}
-                            <div style="text-decoration:line-through; color:#94a3b8; font-size:15px; font-weight:500;">
-                                ${$plan->getPrice()|string_format:"%.0f"}
+                            <div class="emspubcore-price-original">${$plan->getPrice()|string_format:"%.0f"}</div>
+                            <div class="emspubcore-price-row">
+                                <span class="emspubcore-price-discounted">${$plan->getDiscountedPrice()|string_format:"%.0f"}</span>
+                                <span class="emspubcore-price-period">/year</span>
                             </div>
-                            <span class="emspubcore-price-discounted">${$plan->getDiscountedPrice()|string_format:"%.0f"}</span>
-                            <div style="margin-top:4px;">
-                                <span class="ems-badge ems-badge-success">{translate key="plugins.generic.emspubcore.discountedPrice"}</span>
+                            <span class="ems-badge ems-badge-success" style="margin-top:6px;">{translate key="plugins.generic.emspubcore.discountedPrice"}</span>
+                        {elseif $plan->getPrice() == 0}
+                            <div class="emspubcore-price-row">
+                                <span class="emspubcore-price-free">Free</span>
                             </div>
                         {else}
-                            <span class="emspubcore-price">${$plan->getPrice()|string_format:"%.0f"}</span>
+                            <div class="emspubcore-price-row">
+                                <span class="emspubcore-price">${$plan->getPrice()|string_format:"%.0f"}</span>
+                                <span class="emspubcore-price-period">/year</span>
+                            </div>
                         {/if}
                     </div>
 
                     <div class="emspubcore-limit">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
                         {if $plan->getSubmissionLimit() == 0}
                             Unlimited submissions / year
                         {else}
@@ -104,54 +178,74 @@
                         {/if}
                     </div>
 
-                    {if $planKey == $currentPlanKey && $isPlanActive}
-                        <div class="emspubcore-current-badge">Current Plan</div>
+                    {if $plan->getDescription()}
+                        <div class="emspubcore-card-desc">
+                            {$plan->getDescription()|escape}
+                        </div>
                     {/if}
                 </div>
             {/foreach}
         </div>
 
-        <!-- Action Buttons -->
+        <!-- ============================================================
+             ACTION BUTTONS
+             ============================================================ -->
         <div class="emspubcore-save-actions">
             {if $emspubcoreCanEdit}
                 <input type="hidden" id="currentUsage" value="{$emspubcoreCurrentUsage|default:0}" />
                 <input type="hidden" id="currentLimit" value="{$emspubcoreCurrentLimit|default:0}" />
 
                 <div id="emspubcoreLimitWarning" class="ems-warning-card" style="display:none;">
-                    <p><strong>Submission Limit Reached</strong> &mdash;
-                    You have used all your submissions for this billing period.
-                    Renew your plan to reset the counter, or upgrade to a higher plan.</p>
+                    <div class="ems-warning-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </div>
+                    <div class="ems-warning-body">
+                        <strong>Submission Limit Reached</strong>
+                        <p>You have used all your submissions for this billing period. Renew your plan to reset the counter, or upgrade to a higher plan.</p>
+                    </div>
                 </div>
 
-                <form id="activateFreePlanForm" method="POST"
-                      action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="assignPlan"}"
-                      style="display:inline;">
-                    {csrf}
-                    <input type="hidden" name="journalId" value="{$emspubcoreJournalId}" />
-                    <input type="hidden" name="planType" id="activatePlanType" value="free" />
-                    <button class="pkp_button pkp_button_primary" id="emspubcoreActivateBtn" type="submit" style="display:none;">
-                        Activate Free Plan
+                <div class="ems-action-group">
+                    <form id="activateFreePlanForm" method="POST"
+                          action="{url router=$smarty.const.ROUTE_PAGE page="emspubcore" op="assignPlan"}"
+                          style="display:inline;">
+                        {csrf}
+                        <input type="hidden" name="journalId" value="{$emspubcoreJournalId}" />
+                        <input type="hidden" name="planType" id="activatePlanType" value="free" />
+                        <button class="ems-btn ems-btn-primary" id="emspubcoreActivateBtn" type="submit" style="display:none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Activate Free Plan
+                        </button>
+                    </form>
+
+                    <button class="ems-btn ems-btn-primary" id="emspubcoreUpgradeBtn" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                        Upgrade Plan
                     </button>
-                </form>
 
-                <button class="pkp_button pkp_button_primary" id="emspubcoreUpgradeBtn" style="display:none;">
-                    Upgrade Plan
-                </button>
+                    <button class="ems-btn ems-btn-success" id="emspubcoreRenewBtn" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                        Renew Plan
+                    </button>
 
-                <button class="ems-btn ems-btn-success" id="emspubcoreRenewBtn" style="display:none;">
-                    Renew Plan
-                </button>
-
-                <span id="emspubcoreCurrentPlanNote" style="color:#64748b; font-size:13px; font-style:italic;"></span>
+                    <span id="emspubcoreCurrentPlanNote" style="display:none; color:#64748b; font-size:13px; font-style:italic; padding:8px 0;"></span>
+                </div>
             {else}
                 <div class="ems-info-card">
-                    <p><strong>Upgrade Required</strong> &mdash;
-                    Please contact your Journal Manager or Site Administrator to upgrade or renew the plan.</p>
+                    <div class="ems-info-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    </div>
+                    <div class="ems-info-body">
+                        <strong>Upgrade Required</strong>
+                        <p>Please contact your Journal Manager or Site Administrator to upgrade or renew the plan.</p>
+                    </div>
                 </div>
             {/if}
         </div>
 
-        <!-- Site Admin: Manual Plan Assignment -->
+        <!-- ============================================================
+             SITE ADMIN — Manual Plan Assignment
+             ============================================================ -->
         {if $emspubcoreIsSiteAdmin}
         <div class="ems-admin-panel">
             <div class="ems-admin-panel-header">
@@ -161,7 +255,7 @@
                 </svg>
                 <h4>Site Administrator Actions</h4>
             </div>
-            <p>Manually assign a plan without requiring payment. Useful for comp accounts, partnerships, or troubleshooting.</p>
+            <p class="ems-admin-panel-desc">Manually assign a plan without requiring payment. Useful for comp accounts, partnerships, or troubleshooting.</p>
             <div class="ems-admin-panel-actions">
                 <select id="adminPlanSelect" class="ems-admin-select">
                     {foreach from=$emspubcorePlansObject item=plan}
@@ -182,7 +276,9 @@
         </div>
         {/if}
 
-        <!-- Payment History -->
+        <!-- ============================================================
+             PAYMENT HISTORY
+             ============================================================ -->
         <div class="ems-payment-history">
             <div class="ems-payment-history-header">
                 <h3>
@@ -216,19 +312,19 @@
                                         <span class="ems-inv-num">{$payment->payment_id|string_format:"%06d"}</span>
                                     </div>
                                 </td>
-                                <td style="color:#64748b; font-size:13px; white-space:nowrap;">
+                                <td class="ems-col-date">
                                     {$payment->payment_date|substr:0:10}
                                 </td>
                                 <td>
-                                    <strong style="font-size:14px; color:#1e293b;">
+                                    <strong class="ems-amount">
                                         ${$payment->amount / 100|string_format:"%.2f"}
                                     </strong>
-                                    <span style="font-size:11px; color:#94a3b8; margin-left:3px;">USD</span>
+                                    <span class="ems-currency">USD</span>
                                 </td>
                                 <td>
                                     {if $payment->status == 'succeeded'}
                                         <span class="ems-badge ems-badge-success">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:3px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-right:4px;"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                             Completed
                                         </span>
                                     {else}
@@ -256,12 +352,14 @@
                         {foreachelse}
                             <tr class="ems-table-empty">
                                 <td colspan="6">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="display:block;margin:0 auto 10px;">
-                                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                                        <line x1="1" y1="10" x2="23" y2="10"></line>
-                                    </svg>
-                                    No payment history yet.
-                                    <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Transactions will appear here after your first payment.</div>
+                                    <div class="ems-empty-state">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.2" style="display:block;margin:0 auto 12px;">
+                                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                                            <line x1="1" y1="10" x2="23" y2="10"></line>
+                                        </svg>
+                                        <span class="ems-empty-title">No payment history yet</span>
+                                        <span class="ems-empty-sub">Transactions will appear here after your first payment.</span>
+                                    </div>
                                 </td>
                             </tr>
                         {/foreach}
@@ -400,7 +498,7 @@
                 var end   = start + itemsPerPage;
                 $rows.hide().slice(start, end).show();
                 var showEnd = Math.min(end, totalItems);
-                $('#paginationInfo').text('Showing ' + (start + 1) + '\u2013' + showEnd + ' of ' + totalItems);
+                $('#paginationInfo').text('Showing ' + (start + 1) + '–' + showEnd + ' of ' + totalItems);
                 $('#prevPage').prop('disabled', page === 1);
                 $('#nextPage').prop('disabled', page === totalPages);
                 renderPageNumbers();

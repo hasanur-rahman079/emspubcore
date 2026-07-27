@@ -463,70 +463,150 @@
 }
 
 /* ============================================================
-   PLAN CARDS (Plan Selection Tab)
+   PLAN HEADER (Plan Selection Tab)
    ============================================================ */
 
 .emspubcore-plan-header {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
     border-bottom: 1px solid #e2e8f0;
 }
 
-.emspubcore-plan-header h3 {
-    margin: 0 0 12px 0;
+.ems-plan-header-top {
+    margin-bottom: 16px;
+}
+
+.ems-plan-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.ems-plan-header-title h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
     font-size: 17px;
     font-weight: 600;
     color: #1e293b;
 }
 
-.emspubcore-status-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.status-item {
+/* Active/Inactive status pill beside header */
+.ems-plan-status-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 7px 14px;
-    font-size: 13px;
-    color: #475569;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
-.status-item strong {
-    color: #1e293b;
-    font-weight: 600;
-}
-
-.emspubcore-status-active {
-    color: #059669;
-    font-weight: 600;
+.ems-plan-status-active {
     background: #dcfce7;
-    border-color: #a7f3d0;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    color: #059669;
+    border: 1px solid #a7f3d0;
 }
 
-.emspubcore-status-inactive {
-    color: #dc2626;
-    font-weight: 600;
+.ems-plan-status-inactive {
     background: #fee2e2;
-    border-color: #fca5a5;
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
 }
 
-/* Plan Cards Grid */
+.ems-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+/* Metrics row — cards showing current plan / billing / usage */
+.ems-plan-metrics {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ems-metric-item {
+    flex: 1;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ems-metric-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+}
+
+.ems-metric-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.ems-metric-sep {
+    font-weight: 400;
+    color: #cbd5e1;
+}
+
+.ems-metric-divider {
+    width: 1px;
+    background: #e2e8f0;
+    align-self: stretch;
+}
+
+/* Usage progress bar inside the metric item */
+.ems-usage-bar {
+    margin-top: 8px;
+    height: 5px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.ems-usage-fill {
+    height: 100%;
+    background: #0ABF96;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.ems-usage-fill.ems-usage-warning {
+    background: #f59e0b;
+}
+
+.ems-usage-fill.ems-usage-danger {
+    background: #ef4444;
+}
+
+/* Section label above cards */
+.ems-section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+/* ============================================================
+   PLAN CARDS (Plan Selection Tab)
+   ============================================================ */
+
 .emspubcore-card-container {
     display: flex;
     gap: 16px;
@@ -536,43 +616,114 @@
 
 .emspubcore-plan-card {
     flex: 1;
-    min-width: 180px;
+    min-width: 200px;
     background: #fff;
     border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 20px;
+    border-top: 4px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 24px 20px 20px;
     position: relative;
     cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
 }
 
 .emspubcore-plan-card:hover {
-    border-color: #006798;
-    box-shadow: 0 2px 12px rgba(0, 103, 152, 0.1);
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
 }
 
 .emspubcore-plan-card.selected {
     border-color: #006798;
+    border-top-color: #006798;
     background: #f0f7fb;
-    box-shadow: 0 2px 12px rgba(0, 103, 152, 0.12);
+    box-shadow: 0 4px 20px rgba(0, 103, 152, 0.15);
+}
+
+/* Tier-colored top borders */
+.emspubcore-plan-card.tier-free {
+    border-top-color: #94a3b8;
+}
+.emspubcore-plan-card.tier-free.selected {
+    border-color: #64748b;
+    border-top-color: #64748b;
+    background: #f8fafc;
+}
+
+.emspubcore-plan-card.tier-basic {
+    border-top-color: #3b82f6;
+}
+.emspubcore-plan-card.tier-basic.selected {
+    border-color: #3b82f6;
+    border-top-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.emspubcore-plan-card.tier-premium {
+    border-top-color: #a855f7;
+}
+.emspubcore-plan-card.tier-premium.selected {
+    border-color: #a855f7;
+    border-top-color: #a855f7;
+    background: #faf5ff;
+}
+
+.emspubcore-plan-card.tier-enterprise {
+    border-top-color: #f59e0b;
+}
+.emspubcore-plan-card.tier-enterprise.selected {
+    border-color: #f59e0b;
+    border-top-color: #f59e0b;
+    background: #fffbeb;
 }
 
 .emspubcore-card-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.emspubcore-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.tier-free .emspubcore-card-icon {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.tier-basic .emspubcore-card-icon {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.tier-premium .emspubcore-card-icon {
+    background: #f3e8ff;
+    color: #a855f7;
+}
+
+.tier-enterprise .emspubcore-card-icon {
+    background: #fef3c7;
+    color: #f59e0b;
 }
 
 .emspubcore-card-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     color: #1e293b;
+    flex: 1;
 }
 
 .emspubcore-radio {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border: 2px solid #d1d5db;
     border-radius: 50%;
     position: relative;
@@ -583,6 +734,22 @@
 
 .emspubcore-plan-card.selected .emspubcore-radio {
     border-color: #006798;
+    background: #006798;
+}
+
+.tier-basic.selected .emspubcore-radio {
+    border-color: #3b82f6;
+    background: #3b82f6;
+}
+
+.tier-premium.selected .emspubcore-radio {
+    border-color: #a855f7;
+    background: #a855f7;
+}
+
+.tier-enterprise.selected .emspubcore-radio {
+    border-color: #f59e0b;
+    background: #f59e0b;
 }
 
 .emspubcore-plan-card.selected .emspubcore-radio::after {
@@ -591,54 +758,216 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 8px;
-    height: 8px;
-    background: #006798;
+    width: 6px;
+    height: 6px;
+    background: #fff;
     border-radius: 50%;
 }
 
 .emspubcore-price-container {
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+}
+
+.emspubcore-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
 }
 
 .emspubcore-price {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
     color: #006798;
     line-height: 1.2;
 }
 
 .emspubcore-price-discounted {
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 700;
     color: #059669;
     line-height: 1.2;
 }
 
-.emspubcore-limit {
-    font-size: 12px;
+.emspubcore-price-free {
+    font-size: 28px;
+    font-weight: 700;
     color: #64748b;
+    line-height: 1.2;
+}
+
+.emspubcore-price-original {
+    font-size: 15px;
+    font-weight: 500;
+    color: #94a3b8;
+    text-decoration: line-through;
+    margin-bottom: 2px;
+}
+
+.emspubcore-price-period {
+    font-size: 13px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.emspubcore-limit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+
+.emspubcore-card-desc {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
     margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
 }
 
 .emspubcore-current-badge {
-    display: inline-block;
-    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    position: absolute;
+    top: -4px;
+    right: 16px;
     background: #006798;
     color: #fff;
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 3px 8px;
+    padding: 4px 10px;
     border-radius: 4px;
+    z-index: 1;
 }
 
-/* Plan action area */
+.tier-basic .emspubcore-current-badge {
+    background: #3b82f6;
+}
+
+.tier-premium .emspubcore-current-badge {
+    background: #a855f7;
+}
+
+.tier-enterprise .emspubcore-current-badge {
+    background: #f59e0b;
+}
+
+/* Action area */
 .emspubcore-save-actions {
-    padding-top: 16px;
+    padding-top: 20px;
     border-top: 1px solid #e2e8f0;
     margin-top: 4px;
+}
+
+.ems-action-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Warning / Info cards with icon layout */
+.ems-warning-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+}
+
+.ems-warning-icon {
+    flex-shrink: 0;
+    color: #f59e0b;
+    margin-top: 1px;
+}
+
+.ems-warning-body strong {
+    display: block;
+    font-size: 14px;
+    color: #92400e;
+    margin-bottom: 4px;
+}
+
+.ems-warning-body p {
+    margin: 0;
+    font-size: 13px;
+    color: #a16207;
+}
+
+.ems-info-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+
+.ems-info-icon {
+    flex-shrink: 0;
+    color: #0284c7;
+    margin-top: 1px;
+}
+
+.ems-info-body strong {
+    display: block;
+    font-size: 14px;
+    color: #0369a1;
+    margin-bottom: 4px;
+}
+
+.ems-info-body p {
+    margin: 0;
+    font-size: 13px;
+    color: #0284c7;
+}
+
+/* Empty state */
+.ems-empty-state {
+    text-align: center;
+    padding: 8px 0;
+}
+
+.ems-empty-title {
+    display: block;
+    font-size: 14px;
+    color: #94a3b8;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.ems-empty-sub {
+    display: block;
+    font-size: 12px;
+    color: #cbd5e1;
+}
+
+/* Preserve original .ems-warning-card and .ems-info-card for simpler <p>-only usage */
+.ems-warning-card > p:first-child:last-child,
+.ems-info-card > p:first-child:last-child {
+    margin: 0;
+    font-size: 13px;
+}
+
+.ems-warning-card > p:first-child:last-child {
+    color: #92400e;
+}
+
+.ems-info-card > p:first-child:last-child {
+    color: #0369a1;
 }
 
 /* Admin site admin panel */
@@ -664,7 +993,8 @@
     color: #fff;
 }
 
-.ems-admin-panel p {
+.ems-admin-panel p,
+.ems-admin-panel-desc {
     margin: 0 0 16px;
     font-size: 12px;
     color: #94a3b8;
@@ -930,19 +1260,28 @@
         padding: 16px;
     }
 
-    /* Status row: stack vertically instead of horizontal chips */
-    .emspubcore-status-row {
+    /* Metrics row: stack vertically */
+    .ems-plan-metrics {
         flex-direction: column;
-        gap: 8px;
     }
 
-    .status-item {
+    .ems-metric-divider {
         width: 100%;
-        box-sizing: border-box;
+        height: 1px;
+    }
+
+    .ems-metric-item {
+        padding: 12px 16px;
     }
 
     /* Plan header: tighten spacing */
-    .emspubcore-plan-header h3 {
+    .ems-plan-header-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .ems-plan-header-title h3 {
         font-size: 15px;
     }
 
@@ -953,6 +1292,15 @@
 
     .emspubcore-plan-card {
         min-width: unset;
+    }
+
+    .ems-action-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ems-action-group .ems-btn {
+        justify-content: center;
     }
 
     .ems-form-row {
